@@ -66,6 +66,11 @@ app.post('/api/send-email', async (req, res) => {
       html
     });
 
+    if (result?.error) {
+      console.error('Resend returned error:', result.error);
+      return res.status(400).json({ ok: false, error: result.error.message || 'Email rejected by Resend.' });
+    }
+
     return res.json({ ok: true, id: result?.data?.id || null });
   } catch (error) {
     console.error('Email send failed:', error);
