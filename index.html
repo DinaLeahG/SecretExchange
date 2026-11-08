@@ -6,6 +6,7 @@
   <title>Secret Macabi</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -69,7 +70,7 @@
         <div class="body">
           <p class="hint">Paste old results, one per line, like <code>Dina Leah Garber -Rivka</code>. You can add multiple years or upload a .txt file of past draws.</p>
           <label><span>Previous draw results</span><textarea id="lastYearText" placeholder="Dina Leah Garber -Rivka&#10;Moshe Garber -Shira&#10;..."></textarea></label>
-          <label><span>Upload a previous-year text file</span><input id="pastYearFile" type="file" accept=".txt,.csv,text/plain"></label>
+          <label><span>Upload previous-year text files</span><input id="pastYearFile" type="file" accept=".txt,.csv,text/plain" multiple></label>
           <div class="row">
             <button id="applyLastYear">Use these previous matches</button>
             <span class="hint" id="lastYearMsg"></span>

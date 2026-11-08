@@ -259,17 +259,39 @@
     save();
   });
 
+  function parsePreviousMatchLine(line) {
+    if (!line || !line.trim()) return null;
+
+    const cleaned = line.trim().replace(/^\uFEFF/, "");
+    const separators = ["-", "–", "—", "→", ":", "="];
+    let cut = -1;
+    for (const sep of separators) {
+      const index = cleaned.lastIndexOf(sep);
+      if (index > 0 && index < cleaned.length - 1) {
+        cut = index;
+      }
+    }
+
+    if (cut < 0) return null;
+
+    const who = cleaned.slice(0, cut).trim();
+    const picked = cleaned.slice(cut + 1).trim();
+    if (!who || !picked) return null;
+    return { who, picked };
+  }
+
   function applyPreviousMatches(text) {
-    const lines = String(text || "").split(/\r?\n/).filter((line) => line.indexOf("-") > -1);
+    const lines = String(text || "")
+      .replace(/\r/g, "")
+      .split(/\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map(parsePreviousMatchLine)
+      .filter(Boolean);
+
     let matched = 0;
 
-    lines.forEach((line) => {
-      const cut = line.lastIndexOf("-");
-      const who = line.slice(0, cut).trim();
-      const picked = line.slice(cut + 1).trim();
-
-      if (!who || !picked) return;
-
+    lines.forEach(({ who, picked }) => {
       const shortWho = who.split(/\s+/).slice(0, -1).join(" ");
       const person = state.people.find((entry) => sameName(entry.name, who))
         || (shortWho && state.people.find((entry) => sameName(entry.name, shortWho)));
@@ -290,12 +312,13 @@
   }
 
   $("applyLastYear").addEventListener("click", () => {
-    const matched = applyPreviousMatches($("lastYearText").value);
-    const lines = $("lastYearText").value.split(/\r?\n/).filter((line) => line.indexOf("-") > -1);
+    const text = $("lastYearText").value;
+    const matched = applyPreviousMatches(text);
+    const lines = String(text || "").replace(/\r/g, "").split(/\n/).map((line) => line.trim()).filter(Boolean).filter((line) => parsePreviousMatchLine(line));
 
     const message = lines.length
       ? `Filled in ${matched} of ${lines.length} lines.${matched < lines.length ? " Check spelling for the rest." : ""}`
-      : "No lines with a dash found.";
+      : "No valid previous-match lines found.";
 
     $("lastYearMsg").textContent = message;
     renderPeople();
@@ -303,18 +326,28 @@
   });
 
   $("pastYearFile").addEventListener("change", (event) => {
-    const file = event.target.files && event.target.files[0];
-    if (!file) return;
+    const files = Array.from(event.target.files || []);
+    if (!files.length) return;
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const current = $("lastYearText").value;
-      const next = (current && !current.trim().endsWith("\n") ? current + "\n" : current) + String(reader.result || "");
-      $("lastYearText").value = next;
-      $("applyLastYear").click();
-      event.target.value = "";
-    };
-    reader.readAsText(file);
+    const chunks = [];
+    let remaining = files.length;
+
+    files.forEach((file) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        chunks.push(String(reader.result || ""));
+        remaining -= 1;
+
+        if (remaining === 0) {
+          const current = $("lastYearText").value;
+          const combined = [current, chunks.join("\n")].filter(Boolean).join("\n");
+          $("lastYearText").value = combined;
+          $("applyLastYear").click();
+          event.target.value = "";
+        }
+      };
+      reader.readAsText(file);
+    });
   });
 
   function shuffle(array) {
