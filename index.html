@@ -16,7 +16,7 @@
           <i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i>
           <i class="lit shamash"></i><i></i><i></i><i></i><i></i>
         </div>
-        <h1 id="titleOut">Secret Macabi</h1>
+        <h1 id="titleOut">Secret Macabi Admin</h1>
       </div>
       <nav class="topnav" aria-label="Main navigation">
         <a href="index.html" class="active">Draw</a>
@@ -65,12 +65,13 @@
       </div>
 
       <details>
-        <summary>Load last year's matches</summary>
+        <summary>Load previous draw history</summary>
         <div class="body">
-          <p class="hint">Paste last year's results, one per line, like <code>Dina Leah Garber -Rivka</code>. Each line fills in that person's "Last year's match".</p>
-          <label><span>Last year's results</span><textarea id="lastYearText" placeholder="Dina Leah Garber -Rivka&#10;Moshe Garber -Shira"></textarea></label>
+          <p class="hint">Paste old results, one per line, like <code>Dina Leah Garber -Rivka</code>. You can add multiple years or upload a .txt file of past draws.</p>
+          <label><span>Previous draw results</span><textarea id="lastYearText" placeholder="Dina Leah Garber -Rivka&#10;Moshe Garber -Shira&#10;..."></textarea></label>
+          <label><span>Upload a previous-year text file</span><input id="pastYearFile" type="file" accept=".txt,.csv,text/plain"></label>
           <div class="row">
-            <button id="applyLastYear">Fill in last year's matches</button>
+            <button id="applyLastYear">Use these previous matches</button>
             <span class="hint" id="lastYearMsg"></span>
           </div>
         </div>

@@ -28,13 +28,13 @@
     },
     example: true,
     people: [
-      { id: uid(), name: "Example: Dina Leah", email: "dina@example.com", group: "Adults", last: "Example: Moshe", excl: "" },
-      { id: uid(), name: "Example: Moshe", email: "moshe@example.com", group: "Adults", last: "", excl: "Example: Rivka" },
-      { id: uid(), name: "Example: Rivka", email: "rivka@example.com", group: "Adults", last: "", excl: "" },
-      { id: uid(), name: "Example: Avi", email: "avi@example.com", group: "Adults", last: "", excl: "" },
-      { id: uid(), name: "Example: Shira", email: "shira@example.com", group: "Kids", last: "", excl: "" },
-      { id: uid(), name: "Example: Eli", email: "eli@example.com", group: "Kids", last: "", excl: "" },
-      { id: uid(), name: "Example: Noa", email: "noa@example.com", group: "Kids", last: "", excl: "" }
+      { id: uid(), name: "Example: Dina Leah", email: "dina@example.com", group: "Adults", gender: "F", last: "Example: Moshe", excl: "", past: ["Example: Moshe"] },
+      { id: uid(), name: "Example: Moshe", email: "moshe@example.com", group: "Adults", gender: "M", last: "", excl: "Example: Rivka", past: [] },
+      { id: uid(), name: "Example: Rivka", email: "rivka@example.com", group: "Adults", gender: "F", last: "", excl: "", past: [] },
+      { id: uid(), name: "Example: Avi", email: "avi@example.com", group: "Adults", gender: "M", last: "", excl: "", past: [] },
+      { id: uid(), name: "Example: Shira", email: "shira@example.com", group: "Kids", gender: "", last: "", excl: "", past: [] },
+      { id: uid(), name: "Example: Eli", email: "eli@example.com", group: "Kids", gender: "", last: "", excl: "", past: [] },
+      { id: uid(), name: "Example: Noa", email: "noa@example.com", group: "Kids", gender: "", last: "", excl: "", past: [] }
     ],
     results: null,
     stale: false,
@@ -99,9 +99,25 @@
 
   function list(value) {
     return String(value || "")
-      .split(",")
+      .split(/[\n,;]+/)
       .map((item) => item.trim())
       .filter(Boolean);
+  }
+
+  function normalizePast(value) {
+    if (Array.isArray(value)) return value.map((item) => String(item || "").trim()).filter(Boolean);
+    return list(value);
+  }
+
+  function rememberPast(person, matchName) {
+    if (!matchName) return;
+    const seen = normalizePast(person.past || []);
+    const current = seen.concat(matchName);
+    person.past = Array.from(new Set(current.map((item) => String(item).trim()).filter(Boolean)))
+      .filter((item) => !sameName(item, ""));
+    if (person.last && !sameName(person.last, matchName)) {
+      person.last = person.last || matchName;
+    }
   }
 
   function updateTitle() {
@@ -110,7 +126,7 @@
     document.title = nextTitle;
   }
 
-  function buildWishlistLink() {
+  function buildWishlistLink(personName) {
     const config = window.SECRET_MACABI_CONFIG || {};
     const candidate = state.settings.wishlistUrl
       || (config.siteUrl ? new URL(config.wishlistPage || "wishlist.html", config.siteUrl).toString() : getDefaultWishlistUrl());
@@ -118,6 +134,7 @@
     try {
       const url = new URL(candidate, window.location.href);
       url.searchParams.set("event", state.settings.title || "Secret Macabi");
+      if (personName) url.searchParams.set("person", personName);
       return url.toString();
     } catch (error) {
       return candidate;
@@ -146,6 +163,18 @@
     } else {
       box.innerHTML = state.people.map((person) => {
         const id = person.id;
+        const genderField = person.group === "Adults"
+          ? `
+            <label><span>Gender</span>
+              <select id="gen-${id}" data-f="gender">
+                <option value="" ${!person.gender ? "selected" : ""}>—</option>
+                <option value="F" ${person.gender === "F" ? "selected" : ""}>F</option>
+                <option value="M" ${person.gender === "M" ? "selected" : ""}>M</option>
+              </select>
+            </label>
+          `
+          : "";
+
         return `
           <div class="person" data-id="${id}">
             <label><span>Name</span><input id="n-${id}" data-f="name" value="${esc(person.name)}" autocomplete="off"></label>
@@ -156,6 +185,7 @@
                 <option ${person.group === "Kids" ? "selected" : ""}>Kids</option>
               </select>
             </label>
+            ${genderField}
             <label><span>Last year's match</span><input id="l-${id}" data-f="last" value="${esc(person.last)}" autocomplete="off"></label>
             <label><span>Never pair with</span><input id="x-${id}" data-f="excl" value="${esc(person.excl)}" autocomplete="off"></label>
             <button class="remove" data-act="remove" aria-label="Remove ${esc(person.name || "person")}">Remove</button>
@@ -206,7 +236,7 @@
   });
 
   function addPerson(group) {
-    const person = { id: uid(), name: "", email: "", group, last: "", excl: "" };
+    const person = { id: uid(), name: "", email: "", group, gender: group === "Adults" ? "F" : "", last: "", excl: "", past: [] };
     state.people.push(person);
     renderPeople();
     changed();
@@ -229,8 +259,8 @@
     save();
   });
 
-  $("applyLastYear").addEventListener("click", () => {
-    const lines = $("lastYearText").value.split(/\r?\n/).filter((line) => line.indexOf("-") > -1);
+  function applyPreviousMatches(text) {
+    const lines = String(text || "").split(/\r?\n/).filter((line) => line.indexOf("-") > -1);
     let matched = 0;
 
     lines.forEach((line) => {
@@ -245,10 +275,23 @@
         || (shortWho && state.people.find((entry) => sameName(entry.name, shortWho)));
 
       if (person) {
-        person.last = picked;
+        if (!person.last || !sameName(person.last, picked)) {
+          person.last = picked;
+        }
+        const prior = normalizePast(person.past || []);
+        if (!prior.some((name) => sameName(name, picked))) {
+          person.past = prior.concat(picked);
+        }
         matched++;
       }
     });
+
+    return matched;
+  }
+
+  $("applyLastYear").addEventListener("click", () => {
+    const matched = applyPreviousMatches($("lastYearText").value);
+    const lines = $("lastYearText").value.split(/\r?\n/).filter((line) => line.indexOf("-") > -1);
 
     const message = lines.length
       ? `Filled in ${matched} of ${lines.length} lines.${matched < lines.length ? " Check spelling for the rest." : ""}`
@@ -257,6 +300,21 @@
     $("lastYearMsg").textContent = message;
     renderPeople();
     changed();
+  });
+
+  $("pastYearFile").addEventListener("change", (event) => {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const current = $("lastYearText").value;
+      const next = (current && !current.trim().endsWith("\n") ? current + "\n" : current) + String(reader.result || "");
+      $("lastYearText").value = next;
+      $("applyLastYear").click();
+      event.target.value = "";
+    };
+    reader.readAsText(file);
   });
 
   function shuffle(array) {
@@ -269,7 +327,15 @@
 
   function blocked(giver, other) {
     if (sameName(giver.last, other.name)) return true;
-    return list(giver.excl).some((name) => sameName(name, other.name));
+    const priorMatches = normalizePast(giver.past || []).concat(giver.last || "");
+    if (priorMatches.some((name) => sameName(name, other.name))) return true;
+    if (list(giver.excl).some((name) => sameName(name, other.name))) return true;
+
+    if (giver.group === "Adults" && other.group === "Adults" && giver.gender && other.gender && giver.gender !== other.gender) {
+      return true;
+    }
+
+    return false;
   }
 
   function solve(group, label) {
@@ -343,6 +409,10 @@
         }
         seen[key] = true;
       }
+
+      if (person.group === "Adults" && person.gender && !["M", "F"].includes(person.gender.toUpperCase())) {
+        problems.push(person.name + " has an invalid gender. Use M or F.");
+      }
     });
 
     return problems;
@@ -391,7 +461,7 @@
     const first = String(pair.giver).replace(/^Example:\s*/, "");
     const match = String(pair.match).replace(/^Example:\s*/, "");
     const subject = (settings.subject || "").split("{name}").join(first);
-    const wishlist = buildWishlistLink();
+    const wishlist = buildWishlistLink(first);
 
     const body = "Hi " + first + ",\n\n" +
       "You have been assigned " + match + " for the " + (settings.occasion || "party") + ". " +
@@ -417,6 +487,19 @@
     return output;
   }
 
+  function downloadResultsText() {
+    const text = resultsText();
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "secret-macabi-drawings.txt";
+    document.body.appendChild(anchor);
+    anchor.click();
+    document.body.removeChild(anchor);
+    URL.revokeObjectURL(url);
+  }
+
   function renderDraw() {
     const controls = $("drawControls");
     const currentResults = state.results;
@@ -429,6 +512,7 @@
       controls.innerHTML = `
         <a class="btn" href="${buildWishlistLink()}" target="_blank" rel="noopener">View wish list</a>
         <button id="copyAll">Copy all results</button>
+        <button id="downloadText">Download text file</button>
         <button id="redrawBtn">Draw again</button>
       `;
     }
@@ -568,6 +652,8 @@
       renderDraw();
     } else if (button.id === "copyAll") {
       copy(resultsText(), button);
+    } else if (button.id === "downloadText") {
+      downloadResultsText();
     }
   });
 
