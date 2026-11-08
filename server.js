@@ -7,14 +7,17 @@ const port = Number(process.env.PORT || 3001);
 
 app.use(express.json({ limit: '1mb' }));
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || '')
+const configuredOrigins = (process.env.ALLOWED_ORIGINS || '')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
 
+const isGitHubPagesOrigin = (origin) => /^https?:\/\/([a-zA-Z0-9-]+\.)?github\.io(?::\d+)?$/.test(origin || '');
+const allowedOrigins = new Set(configuredOrigins);
+
 app.use((req, res, next) => {
   const origin = req.headers.origin;
-  const isAllowed = !origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin);
+  const isAllowed = !origin || allowedOrigins.has(origin) || isGitHubPagesOrigin(origin);
 
   if (isAllowed) {
     res.setHeader('Access-Control-Allow-Origin', origin || '*');
