@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Secret Macabi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="wrap">
+    <header class="topbar">
+      <div class="brand">
+        <div class="candles" aria-hidden="true">
+          <i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i>
+          <i class="lit shamash"></i><i></i><i></i><i></i><i></i>
+        </div>
+        <h1 id="titleOut">Secret Macabi</h1>
+      </div>
+      <nav class="topnav" aria-label="Main navigation">
+        <a href="index.html" class="active">Draw</a>
+        <a href="wishlist.html">Wish list</a>
+      </nav>
+    </header>
+
+    <p class="lede">
+      Add everyone, draw names so nobody gets themselves or last year's match, then send each person their secret assignment.
+    </p>
+
+    <section class="step" aria-labelledby="s1">
+      <div class="step-head">
+        <div>
+          <div class="num">Step 1</div>
+          <h2 id="s1">Party details</h2>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <label><span>Name of the exchange</span><input id="set-title"></label>
+        <label><span>Gift budget</span><input id="set-budget"></label>
+        <label><span>What it's for</span><input id="set-occasion"></label>
+        <label><span>Sign the email as</span><input id="set-signoff"></label>
+        <label class="wide"><span>Wishlist URL</span><input id="set-wishlistUrl" placeholder="https://your-site/wishlist.html"></label>
+        <label class="wide"><span>Email subject ({name} becomes each person's name)</span><input id="set-subject"></label>
+      </div>
+    </section>
+
+    <section class="step" aria-labelledby="s2">
+      <div class="step-head">
+        <div><div class="num">Step 2</div><h2 id="s2">Who's in</h2></div>
+        <span class="counts" id="counts"></span>
+      </div>
+
+      <div class="banner gold" id="exampleBanner" hidden>
+        <span>These are example names. Replace them with your family.</span>
+        <button id="clearExamples" class="ghost">Clear examples</button>
+      </div>
+
+      <p class="hint">Kids draw from kids and adults draw from adults. "Last year's match" and "Never pair with" are names this person can't get. Separate several names with commas.</p>
+      <div class="people" id="people"></div>
+      <div class="row">
+        <button id="addAdult">Add adult</button>
+        <button id="addKid">Add kid</button>
+      </div>
+
+      <details>
+        <summary>Load last year's matches</summary>
+        <div class="body">
+          <p class="hint">Paste last year's results, one per line, like <code>Dina Leah Garber -Rivka</code>. Each line fills in that person's "Last year's match".</p>
+          <label><span>Last year's results</span><textarea id="lastYearText" placeholder="Dina Leah Garber -Rivka&#10;Moshe Garber -Shira"></textarea></label>
+          <div class="row">
+            <button id="applyLastYear">Fill in last year's matches</button>
+            <span class="hint" id="lastYearMsg"></span>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <section class="step" aria-labelledby="s3">
+      <div class="step-head">
+        <div><div class="num">Step 3</div><h2 id="s3">Draw and send</h2></div>
+        <div class="row" id="drawControls"></div>
+      </div>
+      <div id="drawMsg"></div>
+      <div class="results" id="results"></div>
+      <div id="fallbackWrap" hidden>
+        <p class="hint">Your browser blocked copying. The text is selected below; press Ctrl+C or ⌘C.</p>
+        <textarea id="fallback" readonly></textarea>
+      </div>
+    </section>
+
+    <footer>
+      Matches stay hidden until you click Show, so you can run the draw without seeing who got whom. Everything is saved in this browser only.
+    </footer>
+  </main>
+
+  <script src="config.js"></script>
+  <script src="site.js"></script>
+</body>
+</html>

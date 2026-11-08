@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Secret Macabi Wish List</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .wishlist-shell {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 32px 16px 64px;
+      display: grid;
+      gap: 20px;
+    }
+    .wishlist-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+      display: grid;
+      gap: 18px;
+    }
+    .wish-form {
+      display: grid;
+      gap: 12px;
+    }
+    .wish-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 12px;
+    }
+    .wish-item {
+      display: grid;
+      gap: 8px;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--bg);
+    }
+    .wish-item .meta {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .wish-item a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .wish-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+  </style>
+</head>
+<body>
+  <div class="wishlist-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="candles" aria-hidden="true">
+          <i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i>
+          <i class="lit shamash"></i><i></i><i></i><i></i><i></i>
+        </div>
+        <h1 id="eventTitle">Secret Macabi Wish List</h1>
+      </div>
+      <nav class="topnav" aria-label="Main navigation">
+        <a href="index.html">Back</a>
+      </nav>
+    </header>
+
+    <div class="wishlist-card">
+      <p id="intro" class="lede">Add a few thoughtful ideas or shopping links for the exchange.</p>
+
+      <form class="wish-form" id="wishForm">
+        <label><span>Item</span><input id="wishName" type="text" placeholder="A nice holiday gift" required></label>
+        <label><span>Link (optional)</span><input id="wishLink" type="url" placeholder="https://..."></label>
+        <label><span>Notes (optional)</span><textarea id="wishNotes" placeholder="Size, color, budget, etc."></textarea></label>
+        <div class="row">
+          <button type="submit" class="primary">Add item</button>
+          <button id="clearList" type="button" class="ghost">Clear list</button>
+        </div>
+      </form>
+    </div>
+
+    <section class="wishlist-card">
+      <h2>Wishlist</h2>
+      <ul id="wishList" class="wish-list"></ul>
+    </section>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "secret-macabi-wishlist-items";
+
+    function loadItems() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveItems(items) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+    }
+
+    function titleFromQuery() {
+      const params = new URLSearchParams(window.location.search);
+      const eventName = params.get("event");
+      return eventName ? eventName + " Wish List" : "Secret Macabi Wish List";
+    }
+
+    function renderList() {
+      const list = document.getElementById("wishList");
+      const items = loadItems();
+      list.innerHTML = "";
+
+      if (!items.length) {
+        list.innerHTML = '<li class="wish-item"><strong>No wishlist items yet.</strong><div class="meta">Add a gift idea above.</div></li>';
+        return;
+      }
+
+      items.forEach((item, index) => {
+        const li = document.createElement("li");
+        li.className = "wish-item";
+
+        const title = item.link
+          ? `<a href="${item.link}" target="_blank" rel="noopener">${item.name}</a>`
+          : `<strong>${item.name}</strong>`;
+
+        const noteHtml = item.notes ? `<div class="meta">${item.notes}</div>` : "";
+        const linkHtml = item.link ? `<div class="meta"><a href="${item.link}" target="_blank" rel="noopener">Open link</a></div>` : "";
+
+        li.innerHTML = `
+          ${title}
+          ${noteHtml}
+          ${linkHtml}
+          <div class="wish-actions">
+            <button type="button" class="remove" data-index="${index}">Delete</button>
+          </div>
+        `;
+
+        list.appendChild(li);
+      });
+    }
+
+    document.getElementById("eventTitle").textContent = titleFromQuery();
+    document.getElementById("intro").textContent = "Pick a few thoughtful options or add a link to a gift you would love to receive.";
+
+    document.getElementById("wishForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+
+      const name = document.getElementById("wishName").value.trim();
+      const link = document.getElementById("wishLink").value.trim();
+      const notes = document.getElementById("wishNotes").value.trim();
+
+      if (!name) return;
+
+      const items = loadItems();
+      items.push({ name, link, notes });
+      saveItems(items);
+      renderList();
+
+      event.target.reset();
+      document.getElementById("wishName").focus();
+    });
+
+    document.getElementById("wishList").addEventListener("click", (event) => {
+      const btn = event.target.closest(".remove");
+      if (!btn) return;
+
+      const index = Number(btn.dataset.index);
+      const items = loadItems();
+      items.splice(index, 1);
+      saveItems(items);
+      renderList();
+    });
+
+    document.getElementById("clearList").addEventListener("click", () => {
+      if (confirm("Clear all wishlist items?")) {
+        saveItems([]);
+        renderList();
+      }
+    });
+
+    renderList();
+  </script>
+</body>
+</html>
