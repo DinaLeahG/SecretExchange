@@ -15,6 +15,7 @@
   --warn-soft: #fbf3e0;
   --bad: #b42318;
   --bad-soft: #fdecea;
+  --gold: #c08a2b;
   --radius: 10px;
   --shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 3px rgba(16, 24, 40, .06);
   --display: "Young Serif", Georgia, serif;
@@ -131,9 +132,27 @@ button:focus-visible, .file-btn:focus-within, a:focus-visible, summary:focus-vis
 .center-view { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); padding: 32px 28px; }
 .card.narrow { width: min(100%, 400px); display: grid; gap: 20px; }
-.card-title { font-size: 24px; font-weight: 600; letter-spacing: -.02em; }
+.card-title { font-size: 18px; font-weight: 600; color: var(--muted); }
 .card-links { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
-.brand-mark { font-family: var(--display); font-size: 15px; color: var(--accent); }
+/* ---------- logo: menorah candles + serif title ---------- */
+.brand { display: flex; align-items: flex-end; gap: 12px; }
+.brand-name { font-family: var(--display); font-weight: 400; color: var(--ink); line-height: 1; }
+.candles { display: flex; align-items: flex-end; gap: 5px; }
+.candles i { position: relative; width: 6px; height: 16px; border-radius: 2px; background: var(--line-strong); }
+.candles i.lit { background: var(--accent); }
+.candles i.shamash { height: 24px; }
+.candles i.lit::before {
+  content: ""; position: absolute; left: 50%; top: -9px; width: 6px; height: 8px; margin-left: -3px;
+  border-radius: 50% 50% 50% 50% / 65% 65% 35% 35%; background: var(--gold);
+}
+.brand.lg { padding-top: 10px; }
+.brand.lg .brand-name { font-size: 32px; }
+.brand.sm { gap: 10px; padding-top: 8px; }
+.brand.sm .candles { gap: 4px; }
+.brand.sm .candles i { width: 5px; height: 12px; }
+.brand.sm .candles i.shamash { height: 18px; }
+.brand.sm .candles i.lit::before { width: 5px; height: 7px; margin-left: -2.5px; top: -8px; }
+.brand.sm .brand-name { font-size: 22px; }
 .family-list { display: grid; gap: 8px; }
 .family-pick { justify-content: space-between; width: 100%; padding: 12px 14px; font-weight: 500; }
 
@@ -141,8 +160,8 @@ button:focus-visible, .file-btn:focus-within, a:focus-visible, summary:focus-vis
 .appbar { background: var(--surface); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 10; }
 .appbar-inner, .tabs, .page { max-width: 960px; margin: 0 auto; padding-left: 20px; padding-right: 20px; }
 .appbar-inner { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 14px; padding-bottom: 6px; flex-wrap: wrap; }
-.appbar-title { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
-.family-name { font-weight: 600; font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.appbar-title { display: flex; align-items: flex-end; gap: 14px; min-width: 0; }
+.family-name { font-weight: 500; font-size: 15px; color: var(--muted); padding-left: 14px; border-left: 1px solid var(--line-strong); line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .appbar-actions { display: flex; align-items: center; gap: 14px; }
 .save-state { font-size: 13px; color: var(--muted); min-width: 64px; text-align: right; }
 .save-state.ok { color: var(--ok); }
