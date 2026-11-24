@@ -277,6 +277,7 @@
         </div>`;
       }).join("");
     }
+    $("removeAllPeople").hidden = !members.length;
     const active = members.filter((m) => m.active);
     const adults = active.filter((m) => m.group_name === "Adults").length;
     $("counts").textContent = members.length ? `${adults} adults · ${active.length - adults} kids` : "";
@@ -345,6 +346,27 @@
     }
   }
 
+  async function removeAllPeople() {
+    const n = members.length;
+    if (!n) return;
+    const hasDraws = draws.length > 0;
+    const msg = `Remove all ${n} ${n === 1 ? "person" : "people"}? Their wish lists` +
+      (hasDraws ? " and past draw results" : "") + " will be deleted too. This can't be undone.";
+    if (!window.confirm(msg)) return;
+    try {
+      await persist(() => sb.from("members").delete().eq("family_id", family.id));
+      // Their draw results went with them; clear the now-empty draws too.
+      if (hasDraws) await persist(() => sb.from("draws").delete().eq("family_id", family.id));
+      notice = "";
+      members = [];
+      expanded.clear();
+      preview = null;
+      renderPeople();
+      await loadDraws();
+      toast(`Removed ${n}.`);
+    } catch (e) { await loadMembers(); }
+  }
+
   function parsePersonLine(line) {
     const cleaned = String(line || "").trim().replace(/^['"]|['"]$/g, "");
     if (!cleaned || cleaned.startsWith("#")) return null;
@@ -405,6 +427,7 @@
   }
 
   function renderPastPairs() {
+    $("removeAllPast").hidden = !pastPairs.length;
     $("pastCount").textContent = pastPairs.length ? pastPairs.length : "";
     $("pastList").innerHTML = pastPairs.length
       ? pastPairs.map((p) => `<div class="past-row"><span>${esc(p.giver)} <span class="arrow">→</span> ${esc(p.receiver)}</span>` +
@@ -436,6 +459,18 @@
     if (bad.length) parts.push(`Couldn't read: ${bad.slice(0, 3).join(" / ")}${bad.length > 3 ? " …" : ""}`);
     $("historyMsg").textContent = parts.join(" ");
     $("historyText").value = bad.join("\n");
+  }
+
+  async function removeAllPast() {
+    const n = pastPairs.length;
+    if (!n || !window.confirm(`Remove all ${n} saved past draws? This can't be undone.`)) return;
+    try {
+      await persist(() => sb.from("past_pairs").delete().eq("family_id", family.id));
+      pastPairs = [];
+      renderPastPairs();
+      invalidatePreview();
+      $("historyMsg").textContent = "";
+    } catch (e) { await loadPastPairs(); }
   }
 
   async function removePastPair(event) {
@@ -785,6 +820,8 @@
   $("applyHistory").addEventListener("click", applyHistory);
   $("historyFile").addEventListener("change", loadHistoryFiles);
   $("pastList").addEventListener("click", removePastPair);
+  $("removeAllPeople").addEventListener("click", removeAllPeople);
+  $("removeAllPast").addEventListener("click", removeAllPast);
   $("drawControls").addEventListener("click", onDrawControl);
   $("results").addEventListener("click", onResultClick);
   $("copyShare").addEventListener("click", () => {

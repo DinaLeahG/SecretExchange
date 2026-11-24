@@ -258,3 +258,4 @@ details.settings-block:not([open]) { gap: 0; }
 .past-list .muted { padding-top: 10px; }
 .past-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .past-row .arrow { color: var(--accent); margin: 0 4px; }
+.push-right { margin-left: auto; }

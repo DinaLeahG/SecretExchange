@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=7">
+  <link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
   <div id="globalMsg" class="toast" role="status" hidden></div>
@@ -74,7 +74,10 @@
       <section data-panel="people" class="panel">
         <div class="panel-head">
           <h2>People <span class="count" id="counts"></span></h2>
-          <label class="file-btn">Import list<input id="peopleFile" type="file" accept=".txt,.csv,text/plain" hidden></label>
+          <div class="row">
+            <button type="button" id="removeAllPeople" class="link danger" hidden>Remove all</button>
+            <label class="file-btn">Import list<input id="peopleFile" type="file" accept=".txt,.csv,text/plain" hidden></label>
+          </div>
         </div>
 
         <form id="addPersonForm" class="add-row">
@@ -147,6 +150,7 @@
             <button id="applyHistory" type="button" class="primary">Save</button>
             <label class="file-btn">Upload file<input id="historyFile" type="file" accept=".txt,.csv,text/plain" multiple hidden></label>
             <span class="muted" id="historyMsg"></span>
+            <button type="button" id="removeAllPast" class="link danger push-right" hidden>Remove all</button>
           </div>
           <div id="pastList" class="past-list"></div>
         </details>
@@ -156,6 +160,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
   <script src="config.js?v=4"></script>
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>
