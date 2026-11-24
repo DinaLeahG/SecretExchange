@@ -79,28 +79,27 @@ async function callMailer(payload) {
 }
 
 function buildEmail(family, giver, receiver, wishlistUrl) {
-  const subject = (family.email_subject || 'Your Secret Macabi assignment').split('{name}').join(giver.name);
+  const subject = (family.email_subject || 'Your Secret Macabi match is here!').split('{name}').join(giver.name);
+  const forWhat = family.occasion ? ` for the ${family.occasion}` : '';
+  const budgetLine = family.budget ? `The gift budget is ${family.budget}.` : '';
   const body = [
     `Hi ${giver.name},`,
     '',
-    `You have been assigned ${receiver.name} for the ${family.occasion || 'party'}. ` +
-      `Please remember the gift budget is ${family.budget || '$10'}.`,
+    `You have been assigned ${receiver.name}${forWhat}. ${budgetLine}`.trim(),
     '',
     `See ${receiver.name}'s wish list and add your own: ${wishlistUrl}`,
     '',
     'Enjoy!',
-    '',
-    family.signoff || 'The Party Team'
-  ].join('\n');
+    family.signoff || ''
+  ].join('\n').trim();
   const html = `
     <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1d2439">
       <p>Hi ${escapeHtml(giver.name)},</p>
-      <p>You have been assigned <strong style="font-size:18px">${escapeHtml(receiver.name)}</strong>
-         for the ${escapeHtml(family.occasion || 'party')}.<br>
-         Please remember the gift budget is <strong>${escapeHtml(family.budget || '$10')}</strong>.</p>
+      <p>You have been assigned <strong style="font-size:18px">${escapeHtml(receiver.name)}</strong>${escapeHtml(forWhat)}.
+         ${budgetLine ? `<br>The gift budget is <strong>${escapeHtml(family.budget)}</strong>.` : ''}</p>
       <p><a href="${escapeHtml(wishlistUrl)}" style="display:inline-block;background:#214ec2;color:#fff;padding:10px 16px;border-radius:8px;text-decoration:none">
          See ${escapeHtml(receiver.name)}'s wish list</a></p>
-      <p>Enjoy!<br>${escapeHtml(family.signoff || 'The Party Team')}</p>
+      <p>Enjoy!${family.signoff ? `<br>${escapeHtml(family.signoff)}` : ''}</p>
     </div>`;
   return { subject, body, html };
 }

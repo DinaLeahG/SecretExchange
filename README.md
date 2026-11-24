@@ -23,6 +23,8 @@ GitHub Pages (index.html, wishlist.html)
 ### 1. Supabase (database + logins)
 1. Supabase dashboard → **SQL Editor** → New query → paste all of `supabase/schema.sql` → **Run**.
    It creates: `families`, `family_admins`, `members`, `draws`, `assignments`, `wishlist_items`.
+   ⚠️ Only run `schema.sql` on a brand-new database: it deletes and recreates the tables.
+   For an existing database, run the numbered update files (e.g. `supabase/002_blank_defaults.sql`) instead.
    (Any tables you made earlier with other names are untouched. Delete them in Table Editor if unused.)
 2. **Authentication → Sign In / Providers → Email**: keep Email enabled.
    Free Supabase can only send confirmation emails to your own team, so either:

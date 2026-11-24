@@ -27,10 +27,10 @@ create table public.families (
   id                 uuid primary key default gen_random_uuid(),
   name               text not null check (char_length(trim(name)) between 1 and 100),
   share_token        uuid not null unique default gen_random_uuid(),
-  budget             text not null default '$10'            check (char_length(budget)   <= 50),
-  occasion           text not null default 'Chanukah party' check (char_length(occasion) <= 100),
-  signoff            text not null default 'The Party Team' check (char_length(signoff)  <= 100),
-  email_subject      text not null default '🤫 {name}''s Eyes Only: Your Secret Macabi Assignment Awaits!'
+  budget             text not null default ''               check (char_length(budget)   <= 50),
+  occasion           text not null default ''               check (char_length(occasion) <= 100),
+  signoff            text not null default ''               check (char_length(signoff)  <= 100),
+  email_subject      text not null default ''
                                                             check (char_length(email_subject) <= 200),
   avoid_recent_draws int  not null default 1 check (avoid_recent_draws between 0 and 10),
   created_by         uuid references auth.users(id) on delete set null,
@@ -184,10 +184,10 @@ create table public.families (
   id                 uuid primary key default gen_random_uuid(),
   name               text not null check (char_length(trim(name)) between 1 and 100),
   share_token        uuid not null unique default gen_random_uuid(),
-  budget             text not null default '$10'            check (char_length(budget)   <= 50),
-  occasion           text not null default 'Chanukah party' check (char_length(occasion) <= 100),
-  signoff            text not null default 'The Party Team' check (char_length(signoff)  <= 100),
-  email_subject      text not null default '🤫 {name}''s Eyes Only: Your Secret Macabi Assignment Awaits!'
+  budget             text not null default ''               check (char_length(budget)   <= 50),
+  occasion           text not null default ''               check (char_length(occasion) <= 100),
+  signoff            text not null default ''               check (char_length(signoff)  <= 100),
+  email_subject      text not null default ''
                                                             check (char_length(email_subject) <= 200),
   avoid_recent_draws int  not null default 1 check (avoid_recent_draws between 0 and 10),
   created_by         uuid references auth.users(id) on delete set null,
