@@ -406,7 +406,8 @@
     const cleaned = String(line || "").replace(/^﻿/, "").trim();
     if (!cleaned) return null;
     const m = cleaned.match(/^(.+?)\s*(?:->|=>|→|–|—|:)\s*(.+)$/) || cleaned.match(/^(.+?)\s+-\s*(.+)$/);
-    if (m) return { giver: m[1].trim(), receiver: m[2].trim() };
+    const tidy = (g) => g.replace(/\s+(drew|draws|got|gets|picked|has|had)$/i, "").trim();
+    if (m) return { giver: tidy(m[1].trim()), receiver: m[2].trim() };
     const i = cleaned.lastIndexOf("-");
     if (i > 0 && i < cleaned.length - 1) return { giver: cleaned.slice(0, i).trim(), receiver: cleaned.slice(i + 1).trim() };
     // Headings from old result files ("ADULTS", "/\/\/\", "Welcome to ...!") are skipped quietly.
