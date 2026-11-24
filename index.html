@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=6">
+  <link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
   <div id="globalMsg" class="toast" role="status" hidden></div>
@@ -140,14 +140,15 @@
         </div>
 
         <details class="settings-block">
-          <summary><h3>Past draws</h3></summary>
-          <p class="muted">One per line: <code>Giver - Receiver</code>. These pairs won't repeat.</p>
+          <summary><h3>Past draws <span class="count" id="pastCount"></span></h3></summary>
+          <p class="muted">One per line: <code>Giver - Receiver</code>. Saved pairs won't repeat.</p>
           <textarea id="historyText" placeholder="Leah Rosen - Ben&#10;Ben Rosen - Noa"></textarea>
           <div class="row">
-            <button id="applyHistory" type="button">Add</button>
+            <button id="applyHistory" type="button" class="primary">Save</button>
             <label class="file-btn">Upload file<input id="historyFile" type="file" accept=".txt,.csv,text/plain" multiple hidden></label>
             <span class="muted" id="historyMsg"></span>
           </div>
+          <div id="pastList" class="past-list"></div>
         </details>
       </section>
     </main>
@@ -155,6 +156,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
   <script src="config.js?v=4"></script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

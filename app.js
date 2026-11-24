@@ -91,6 +91,7 @@
   let members = [];
   let draws = [];          // newest first
   let assignments = [];
+  let pastPairs = [];      // imported history: [{id, giver, receiver}]
   let preview = null;      // unsaved draw: [{giver_id, receiver_id}]
   let notice = "";
   const revealed = {};
@@ -191,7 +192,7 @@
     showTab(storageGet(LAST_TAB_KEY) || "people");
     renderSettings();
     renderShare();
-    await Promise.all([loadMembers(), loadDraws(), loadAdmins()]);
+    await Promise.all([loadMembers(), loadDraws(), loadAdmins(), loadPastPairs()]);
   }
 
   // ================================================================= TABS
@@ -378,42 +379,74 @@
     } catch (e) {}
   }
 
+  // "Giver - Receiver". Prefer unambiguous separators so hyphenated names (Ben-David) stay intact.
   function parseHistoryLine(line) {
-    const cleaned = String(line || "").trim().replace(/^﻿/, "");
-    let cut = -1;
-    ["-", "–", "—", "→", ":", "="].forEach((sep) => {
-      const i = cleaned.lastIndexOf(sep);
-      if (i > 0 && i < cleaned.length - 1 && i > cut) cut = i;
-    });
-    if (cut < 0) return null;
-    const who = cleaned.slice(0, cut).trim(), picked = cleaned.slice(cut + 1).trim();
-    return who && picked ? { who, picked } : null;
+    const cleaned = String(line || "").replace(/^﻿/, "").trim();
+    if (!cleaned) return null;
+    const m = cleaned.match(/^(.+?)\s*(?:->|=>|→|–|—|:)\s*(.+)$/) || cleaned.match(/^(.+?)\s+-\s*(.+)$/);
+    if (m) return { giver: m[1].trim(), receiver: m[2].trim() };
+    const i = cleaned.lastIndexOf("-");
+    if (i > 0 && i < cleaned.length - 1) return { giver: cleaned.slice(0, i).trim(), receiver: cleaned.slice(i + 1).trim() };
+    // Headings from old result files ("ADULTS", "/\/\/\", "Welcome to ...!") are skipped quietly.
+    if (!/[a-z]/i.test(cleaned) || /^(adults?|kids?)$/i.test(cleaned) || /!$/.test(cleaned) || cleaned === cleaned.toUpperCase()) return null;
+    return { bad: cleaned };
+  }
+
+  async function loadPastPairs() {
+    const { data, error } = await sb.from("past_pairs").select("id, giver, receiver").eq("family_id", family.id).order("giver").order("receiver");
+    if (error) {
+      $("pastList").innerHTML = /past_pairs/.test(error.message)
+        ? banner("bad", "Run supabase/003_past_pairs.sql in Supabase to enable saved past draws.")
+        : banner("bad", friendlyError(error));
+      return;
+    }
+    pastPairs = data || [];
+    renderPastPairs();
+  }
+
+  function renderPastPairs() {
+    $("pastCount").textContent = pastPairs.length ? pastPairs.length : "";
+    $("pastList").innerHTML = pastPairs.length
+      ? pastPairs.map((p) => `<div class="past-row"><span>${esc(p.giver)} <span class="arrow">→</span> ${esc(p.receiver)}</span>` +
+          `<button type="button" class="link danger" data-pair="${esc(p.id)}" aria-label="Remove">Remove</button></div>`).join("")
+      : '<p class="muted">None saved yet.</p>';
   }
 
   async function applyHistory() {
-    const lines = $("historyText").value.replace(/\r/g, "").split("\n").map(parseHistoryLine).filter(Boolean);
-    if (!lines.length) { $("historyMsg").textContent = "No valid lines."; return; }
-    const changes = new Map();
-    let matched = 0;
-    lines.forEach(({ who, picked }) => {
-      const shortWho = who.split(/\s+/).slice(0, -1).join(" ");
-      const person = members.find((m) => sameName(m.name, who)) || (shortWho && members.find((m) => sameName(m.name, shortWho)));
-      if (!person) return;
-      matched++;
-      const past = changes.get(person.id) || (person.past_matches || []).slice();
-      if (!past.some((n) => sameName(n, picked))) past.push(picked);
-      changes.set(person.id, past);
+    const parsed = $("historyText").value.replace(/\r/g, "").split("\n").map(parseHistoryLine).filter(Boolean);
+    const bad = parsed.filter((p) => p.bad).map((p) => p.bad);
+    const key = (g, r) => norm(g) + "|" + norm(r);
+    const have = new Set(pastPairs.map((p) => key(p.giver, p.receiver)));
+    const rows = [];
+    let dupes = 0;
+    parsed.filter((p) => !p.bad).forEach((p) => {
+      const k = key(p.giver, p.receiver);
+      if (have.has(k)) { dupes++; return; }
+      have.add(k);
+      rows.push({ family_id: family.id, giver: p.giver.slice(0, 100), receiver: p.receiver.slice(0, 100) });
     });
+    if (!rows.length && !bad.length) { $("historyMsg").textContent = dupes ? "Already saved." : "Nothing to add."; return; }
+    if (rows.length) {
+      try { await persist(() => sb.from("past_pairs").insert(rows)); } catch (e) { return; }
+      await loadPastPairs();
+      invalidatePreview();
+    }
+    const parts = [`Saved ${rows.length}.`];
+    if (dupes) parts.push(`${dupes} already saved.`);
+    if (bad.length) parts.push(`Couldn't read: ${bad.slice(0, 3).join(" / ")}${bad.length > 3 ? " …" : ""}`);
+    $("historyMsg").textContent = parts.join(" ");
+    $("historyText").value = bad.join("\n");
+  }
+
+  async function removePastPair(event) {
+    const button = event.target.closest("[data-pair]");
+    if (!button) return;
     try {
-      for (const [id, past] of changes) {
-        await persist(() => sb.from("members").update({ past_matches: past }).eq("id", id));
-        memberById(id).past_matches = past;
-      }
-    } catch (e) { return; }
-    $("historyMsg").textContent = `${matched} of ${lines.length} matched.` + (matched < lines.length ? " Check spelling." : "");
-    if (matched === lines.length) $("historyText").value = "";
-    renderPeople();
-    invalidatePreview();
+      await persist(() => sb.from("past_pairs").delete().eq("id", button.dataset.pair));
+      pastPairs = pastPairs.filter((p) => p.id !== button.dataset.pair);
+      renderPastPairs();
+      invalidatePreview();
+    } catch (e) {}
   }
 
   async function loadHistoryFiles(event) {
@@ -445,9 +478,17 @@
   function blocked(giver, other, recentReceivers) {
     if ((recentReceivers.get(giver.id) || new Set()).has(other.id)) return true;
     if ((giver.past_matches || []).some((n) => sameName(n, other.name))) return true;
+    if (pastPairs.some((p) => pastNameMatches(p.giver, giver.name) && pastNameMatches(p.receiver, other.name))) return true;
     if (list(giver.exclusions).some((n) => sameName(n, other.name))) return true;
     if (giver.group_name === "Adults" && other.group_name === "Adults" && giver.gender && other.gender && giver.gender !== other.gender) return true;
     return false;
+  }
+
+  // History often has full names ("Leah Rosen") while the list has "Leah", or vice versa.
+  function pastNameMatches(historyName, memberName) {
+    if (sameName(historyName, memberName)) return true;
+    const shorter = historyName.split(/\s+/).slice(0, -1).join(" ");
+    return !!shorter && sameName(shorter, memberName);
   }
 
   function shuffle(array) {
@@ -743,6 +784,7 @@
   $("peopleFile").addEventListener("change", importPeople);
   $("applyHistory").addEventListener("click", applyHistory);
   $("historyFile").addEventListener("change", loadHistoryFiles);
+  $("pastList").addEventListener("click", removePastPair);
   $("drawControls").addEventListener("click", onDrawControl);
   $("results").addEventListener("click", onResultClick);
   $("copyShare").addEventListener("click", () => {

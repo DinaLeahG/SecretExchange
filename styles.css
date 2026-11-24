@@ -252,3 +252,9 @@ details.settings-block:not([open]) { gap: 0; }
   .grid-2 { grid-template-columns: minmax(0, 1fr); }
   .inline-form { flex-wrap: wrap; }
 }
+
+/* ---------- past draws ---------- */
+.past-list { display: grid; max-height: 320px; overflow-y: auto; border-top: 1px solid var(--line); }
+.past-list .muted { padding-top: 10px; }
+.past-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.past-row .arrow { color: var(--accent); margin: 0 4px; }

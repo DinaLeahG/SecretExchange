@@ -15,6 +15,7 @@
 create extension if not exists pgcrypto;
 
 -- ---------- clean re-run ----------
+drop table if exists public.past_pairs     cascade;
 drop table if exists public.wishlist_items cascade;
 drop table if exists public.assignments    cascade;
 drop table if exists public.draws          cascade;
@@ -172,6 +173,7 @@ grant update (title, link, notes) on public.wishlist_items to authenticated;
 create extension if not exists pgcrypto;
 
 -- ---------- clean re-run ----------
+drop table if exists public.past_pairs     cascade;
 drop table if exists public.wishlist_items cascade;
 drop table if exists public.assignments    cascade;
 drop table if exists public.draws          cascade;
@@ -606,3 +608,26 @@ grant execute on function
   public.wishlist_get(uuid), public.wishlist_add(uuid, uuid, text, text, text),
   public.wishlist_delete(uuid, uuid, uuid)
 to anon, authenticated;
+
+-- =====================================================================
+-- Past draws imported as text (also shipped as 002/003 update files)
+-- =====================================================================
+
+create table if not exists public.past_pairs (
+  id         uuid primary key default gen_random_uuid(),
+  family_id  uuid not null references public.families(id) on delete cascade,
+  giver      text not null check (char_length(trim(giver))    between 1 and 100),
+  receiver   text not null check (char_length(trim(receiver)) between 1 and 100),
+  created_at timestamptz not null default now()
+);
+create unique index if not exists past_pairs_unique_idx
+  on public.past_pairs (family_id, lower(trim(giver)), lower(trim(receiver)));
+
+alter table public.past_pairs enable row level security;
+
+drop policy if exists "admins manage past pairs" on public.past_pairs;
+create policy "admins manage past pairs" on public.past_pairs for all to authenticated
+  using (public.is_family_admin(family_id)) with check (public.is_family_admin(family_id));
+
+revoke all on public.past_pairs from anon, authenticated;
+grant select, insert, delete on public.past_pairs to authenticated;
