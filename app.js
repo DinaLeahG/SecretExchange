@@ -192,6 +192,7 @@
     Object.keys(revealed).forEach((k) => delete revealed[k]);
     views("appView");
     showTab(storageGet(LAST_TAB_KEY) || "people");
+    setupHeadsUpDate();
     renderSettings();
     renderShare();
     await Promise.all([loadMembers(), loadDraws(), loadAdmins(), loadPastPairs()]);
@@ -652,17 +653,40 @@
     await loadDraws();
   }
 
+  // Local calendar date as YYYY-MM-DD (not UTC), so "tomorrow" matches the organizer's clock.
+  function localISO(d) {
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function describeDate(dateStr) {
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const target = new Date(y, m - 1, d);
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    const days = Math.round((target - now) / 86400000);
+    if (days === 0) return "today";
+    if (days === 1) return "tomorrow";
+    if (days > 1 && days < 7) return `in ${days} days`;
+    return "on " + target.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" });
+  }
+  function setupHeadsUpDate() {
+    const input = $("headsUpDate");
+    const today = new Date();
+    const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+    input.min = localISO(today);
+    if (!input.value || input.value < input.min) input.value = localISO(tomorrow);
+  }
+
   async function sendHeadsUp() {
     const recipients = members.filter((m) => m.active && m.email);
     if (!recipients.length) { toast("Nobody taking part has an email yet.", "bad"); return; }
-    const select = $("headsUpWhen");
-    const whenText = select.options[select.selectedIndex].text.replace(/^Drawing is /, "").toLowerCase();
-    if (!window.confirm(`Email ${recipients.length} ${recipients.length === 1 ? "person" : "people"} that the drawing is ${whenText}?`)) return;
+    const date = $("headsUpDate").value;
+    const today = localISO(new Date());
+    if (!date || date < today) { toast("Pick a drawing date from today onward.", "bad"); return; }
+    if (!window.confirm(`Email ${recipients.length} ${recipients.length === 1 ? "person" : "people"} that the drawing is ${describeDate(date)}?`)) return;
     const button = $("sendHeadsUp");
     button.disabled = true;
     button.textContent = "Sending…";
     try {
-      const result = await apiPost("/api/send-heads-up", { familyId: family.id, when: select.value });
+      const result = await apiPost("/api/send-heads-up", { familyId: family.id, date, today });
       const failed = (result.results || []).filter((r) => !r.ok);
       const sent = (result.results || []).filter((r) => r.ok).length;
       if (!result.results) notice = banner("bad", result.error || "Sending failed.");

@@ -266,7 +266,9 @@ details.settings-block:not([open]) { gap: 0; }
 @media (max-width: 720px) { .past-row { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
 .push-right { margin-left: auto; }
 .heads-up { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
-.heads-up select { width: auto; }
+.heads-up .row { align-items: flex-end; }
+.date-field { gap: 4px; }
+.date-field input { width: auto; min-width: 160px; }
 .link-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .small-btn {
   font: inherit; font-size: 13px; font-weight: 600; line-height: 1;

@@ -122,11 +122,12 @@ ${inner}
 const emailText = (text, color = '#17191e', margin = '0 0 6px') =>
   `<p style="margin:${margin};font:15px/1.5 ${FONT};color:${color}">${text}</p>`;
 
-function highlightBox(label, value) {
+function highlightBox(label, value, sub) {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef1fc;border-radius:10px">
             <tr><td align="center" style="padding:22px 16px">
               <div style="font:600 12px/1 ${FONT};letter-spacing:1.5px;text-transform:uppercase;color:#2446c7">${escapeHtml(label)}</div>
               <div style="padding-top:10px;font:28px/1.2 ${SERIF};color:#17191e">${escapeHtml(value)}</div>
+              ${sub ? `<div style="padding-top:6px;font:14px/1.4 ${FONT};color:#6b6f78">${escapeHtml(sub)}</div>` : ''}
             </td></tr>
           </table>`;
 }
@@ -174,15 +175,26 @@ function buildEmail(family, giver, receiver, wishlistUrl) {
 }
 
 // ---------- the heads-up email (sent before the draw) ----------
-const WHEN_OPTIONS = { tomorrow: 'Tomorrow', '2days': 'In 2 days', '3days': 'In 3 days', nextweek: 'Next week' };
+// Dates are plain "YYYY-MM-DD" strings. `today` comes from the organizer's browser so
+// "tomorrow" matches their calendar, not the server's time zone.
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+function describeDrawDate(dateStr, todayStr) {
+  if (!ISO_DATE.test(dateStr || '') || !ISO_DATE.test(todayStr || '')) return null;
+  const toUtc = (d) => { const [y, m, day] = d.split('-').map(Number); return Date.UTC(y, m - 1, day); };
+  const days = Math.round((toUtc(dateStr) - toUtc(todayStr)) / 86400000);
+  if (!Number.isFinite(days) || days < 0 || days > 365) return null;
+  const full = new Date(toUtc(dateStr)).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', timeZone: 'UTC' });
+  if (days === 0) return { phrase: 'today', title: 'Today', full };
+  if (days === 1) return { phrase: 'tomorrow', title: 'Tomorrow', full };
+  if (days < 7) return { phrase: `in ${days} days`, title: `In ${days} days`, full };
+  return { phrase: `on ${full}`, title: full, full: '' };
+}
 
-function buildHeadsUpEmail(family, person, whenKey, wishlistUrl) {
-  const when = WHEN_OPTIONS[whenKey];
-  const whenLower = when.toLowerCase();
-  const subject = `The Secret Macabi drawing is ${whenLower}!`;
+function buildHeadsUpEmail(family, person, when, wishlistUrl) {
+  const subject = `The Secret Macabi drawing is ${when.phrase}!`;
   const body = plainText([
     `Hi ${person.name},`, '',
-    `Get ready! The Secret Macabi drawing is ${whenLower}.`,
+    `Get ready! The Secret Macabi drawing is ${when.phrase}${when.full ? ` (${when.full})` : ''}.`,
     'Add a few gift ideas to your wishlist so your Secret Macabi knows what you love.', '',
     family.occasion ? `Occasion: ${family.occasion}` : '',
     family.budget ? `Budget: ${family.budget}` : '', '',
@@ -190,12 +202,12 @@ function buildHeadsUpEmail(family, person, whenKey, wishlistUrl) {
     family.signoff || ''
   ]);
   const html = emailShell({
-    preview: `The drawing is ${whenLower}. Add to your wishlist before names are drawn 🎁`,
+    preview: `The drawing is ${when.phrase}. Add to your wishlist before names are drawn 🎁`,
     signoff: family.signoff,
     footer: 'See you soon!',
     inner: emailText(`Hi ${escapeHtml(person.name)},`) +
       emailText('Get ready! Add a few gift ideas to your wishlist so your Secret Macabi knows what you love.', '#6b6f78', '0 0 24px') +
-      highlightBox('The drawing is', when) +
+      highlightBox('The drawing is', when.title, when.full) +
       detailRows(family) +
       giftLink(wishlistUrl, 'Add to your wishlist')
   });
@@ -317,15 +329,16 @@ app.post('/api/send-assignments', async (req, res) => {
 });
 
 // Heads-up email to everyone taking part, sent before the draw.
-// Body: { familyId: uuid, when: 'tomorrow' | '2days' | '3days' | 'nextweek' }
+// Body: { familyId: uuid, date: 'YYYY-MM-DD', today: 'YYYY-MM-DD' (organizer's local date) }
 app.post('/api/send-heads-up', async (req, res) => {
   try {
     const auth = await userClient(req);
     if (!auth) return res.status(401).json({ ok: false, error: 'Please log in again.' });
     if (!isApprovedSender(auth.user)) return res.status(403).json({ ok: false, error: NOT_APPROVED });
     const { sb, user } = auth;
-    const { familyId, when } = req.body || {};
-    if (!familyId || !WHEN_OPTIONS[when]) return res.status(400).json({ ok: false, error: 'Pick when the drawing is.' });
+    const { familyId, date, today } = req.body || {};
+    const when = describeDrawDate(date, today);
+    if (!familyId || !when) return res.status(400).json({ ok: false, error: 'Pick a drawing date from today onward.' });
 
     // RLS: these only return rows if this user is an admin of the family.
     const { data: family, error: famError } = await sb.from('families')
@@ -372,5 +385,5 @@ if (require.main === module) {
   });
 }
 
-module.exports = { buildEmail, buildHeadsUpEmail };
+module.exports = { buildEmail, buildHeadsUpEmail, describeDrawDate };
 
