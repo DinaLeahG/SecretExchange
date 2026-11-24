@@ -4,18 +4,21 @@ require('dotenv').config({ path: 'local.env' });
 const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
 
-const {
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY,
-  APPS_SCRIPT_URL,
-  APPS_SCRIPT_SECRET,
-  SITE_URL = 'https://dinaleahg.github.io/SecretExchange/',
-  ALLOWED_ORIGINS = 'https://dinaleahg.github.io',
-  PORT = 10000
-} = process.env;
+// Trim stray spaces/newlines/quotes that often sneak in when pasting into a dashboard.
+const env = (key, fallback = '') => String(process.env[key] ?? fallback).trim().replace(/^["']|["']$/g, '').trim();
+const SUPABASE_URL = env('SUPABASE_URL');
+const SUPABASE_ANON_KEY = env('SUPABASE_ANON_KEY');
+const APPS_SCRIPT_URL = env('APPS_SCRIPT_URL');
+const APPS_SCRIPT_SECRET = env('APPS_SCRIPT_SECRET');
+const SITE_URL = env('SITE_URL', 'https://dinaleahg.github.io/SecretExchange/');
+const ALLOWED_ORIGINS = env('ALLOWED_ORIGINS', 'https://dinaleahg.github.io');
+const PORT = env('PORT', '10000');
+const APPS_SCRIPT_URL_OK = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(APPS_SCRIPT_URL);
+// Safe-to-show fingerprint of the URL (not secret) so setup problems can be spotted from /api/health.
+const appsScriptHint = APPS_SCRIPT_URL ? APPS_SCRIPT_URL.slice(0, 40) + '…' + APPS_SCRIPT_URL.slice(-12) : '(missing)';
 
 const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'APPS_SCRIPT_URL', 'APPS_SCRIPT_SECRET']
-  .filter((key) => !process.env[key]);
+  .filter((key) => !env(key));
 if (missing.length) console.warn('⚠️  Missing environment variables:', missing.join(', '));
 
 const app = express();
@@ -74,7 +77,11 @@ async function callMailer(payload) {
   try {
     return JSON.parse(text);
   } catch {
-    throw new Error('Mail service returned an unexpected response. Check the Apps Script deployment (access must be "Anyone").');
+    const title = (text.match(/<title>([^<]*)<\/title>/i) || [])[1] || text.slice(0, 80);
+    console.error('Apps Script non-JSON reply', response.status, response.url, title);
+    throw new Error(`Mail service returned an unexpected response (HTTP ${response.status}: "${title.trim()}"). ` +
+      (APPS_SCRIPT_URL_OK ? 'Check the Apps Script deployment: Execute as "Me", access "Anyone".'
+                          : 'APPS_SCRIPT_URL on Render doesn\'t look like https://script.google.com/macros/s/…/exec'));
   }
 }
 
@@ -106,7 +113,15 @@ function buildEmail(family, giver, receiver, wishlistUrl) {
 
 // ---------- routes ----------
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, service: 'secret-macabi-email', configured: missing.length === 0 });
+  res.json({
+    ok: true,
+    service: 'secret-macabi-email',
+    configured: missing.length === 0,
+    missing,
+    appsScriptUrl: appsScriptHint,
+    appsScriptUrlLooksValid: APPS_SCRIPT_URL_OK,
+    secretLength: APPS_SCRIPT_SECRET.length
+  });
 });
 
 // Send a test email to the logged-in admin themself.
