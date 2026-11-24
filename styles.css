@@ -267,3 +267,14 @@ details.settings-block:not([open]) { gap: 0; }
 .push-right { margin-left: auto; }
 .heads-up { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
 .heads-up select { width: auto; }
+.link-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.small-btn {
+  font: inherit; font-size: 13px; font-weight: 600; line-height: 1;
+  padding: 8px 12px; border-radius: 8px; border: 1px solid var(--line-strong);
+  background: var(--surface); color: var(--ink); text-decoration: none; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; min-width: 72px;
+}
+.small-btn:hover { background: var(--sunk); text-decoration: none; }
+.subtle-actions { padding-top: 12px; border-top: 1px solid var(--line); gap: 6px; }
+.subtle-actions .link { font-size: 13px; }
+.subtle-actions .dot { color: var(--muted); }

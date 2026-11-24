@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=13">
+  <link rel="stylesheet" href="styles.css?v=16">
 </head>
 <body>
   <div id="globalMsg" class="toast" role="status" hidden></div>
@@ -136,14 +136,16 @@
         </div>
 
         <div class="settings-block">
-          <h3>Wish list link</h3>
-          <p class="muted">Share this with the family so everyone can add ideas. It's also in every email.</p>
-          <div class="row">
-            <button id="copyShare" type="button" class="primary">Copy link</button>
-            <a id="openShare" class="file-btn" href="wishlist.html" target="_blank" rel="noopener">Open ↗</a>
+          <div class="link-row">
+            <h3>Wish list link</h3>
+            <div class="row">
+              <button id="copyShare" type="button" class="small-btn">Copy</button>
+              <a id="openShare" class="small-btn" href="wishlist.html" target="_blank" rel="noopener">Open ↗</a>
+            </div>
           </div>
-          <div class="row">
+          <div class="row subtle-actions">
             <button id="testEmail" type="button" class="link">Send test email</button>
+            <span class="dot" aria-hidden="true">·</span>
             <button id="regenShare" type="button" class="link danger">Reset link</button>
           </div>
         </div>
