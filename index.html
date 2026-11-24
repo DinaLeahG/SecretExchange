@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=12">
+  <link rel="stylesheet" href="styles.css?v=13">
 </head>
 <body>
   <div id="globalMsg" class="toast" role="status" hidden></div>
@@ -96,6 +96,21 @@
           <h2>Draw</h2>
           <div class="row" id="drawControls"></div>
         </div>
+        <div class="heads-up" id="headsUpBar">
+          <div>
+            <h3>Heads-up email</h3>
+            <p class="muted">Remind everyone to fill in their wishlist before you draw.</p>
+          </div>
+          <div class="row">
+            <select id="headsUpWhen" aria-label="When is the drawing?">
+              <option value="tomorrow">Drawing is tomorrow</option>
+              <option value="2days">In 2 days</option>
+              <option value="3days">In 3 days</option>
+              <option value="nextweek">Next week</option>
+            </select>
+            <button type="button" id="sendHeadsUp">Send</button>
+          </div>
+        </div>
         <div id="drawMsg"></div>
         <div class="results" id="results"></div>
       </section>
@@ -160,6 +175,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
   <script src="config.js?v=4"></script>
-  <script src="app.js?v=12"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>

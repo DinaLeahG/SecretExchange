@@ -265,3 +265,5 @@ details.settings-block:not([open]) { gap: 0; }
 .chip button:hover { color: var(--bad); background: none; }
 @media (max-width: 720px) { .past-row { grid-template-columns: minmax(0, 1fr); gap: 6px; } }
 .push-right { margin-left: auto; }
+.heads-up { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 16px 20px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.heads-up select { width: auto; }

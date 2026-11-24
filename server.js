@@ -85,82 +85,114 @@ async function callMailer(payload) {
   }
 }
 
-function buildEmail(family, giver, receiver, wishlistUrl) {
-  const subject = (family.email_subject || 'Your Secret Macabi match is here!').split('{name}').join(giver.name);
-  const e = escapeHtml;
+// ---------- email design (shared by every email) ----------
+const FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+const SERIF = "Georgia,'Times New Roman',serif";
 
-  // ---- plain-text version (for mail apps that don't show HTML) ----
-  const body = [
-    'Your Secret Macabi match is inside 🤫',
-    '', '', '',
-    `Hi ${giver.name},`,
-    '',
-    `You're giving a gift to: ${receiver.name}`,
-    family.occasion ? `Occasion: ${family.occasion}` : '',
-    family.budget ? `Budget: ${family.budget}` : '',
-    '',
-    `🎁 ${receiver.name}'s wishlist: ${wishlistUrl}`,
-    '',
-    'Remember, it\'s a secret!',
-    family.signoff || ''
-  ].filter((line, i, all) => line !== '' || all[i - 1] !== '').join('\n').trim();
-
-  // ---- HTML version ----
-  // Hidden "preheader": inbox previews show this instead of the first sentence (which names the match).
-  // The trailing invisible characters stop Gmail from pulling body text into the preview.
-  const preview = 'Your Secret Macabi match is inside 🤫 Open to find out!';
+// The white card with "Secret Macabi" header and a quiet footer.
+// `preview` is the hidden inbox-preview line; padding stops Gmail pulling body text into it.
+function emailShell({ preview, inner, signoff, footer = "Remember, it's a secret 🤫" }) {
   const previewPad = '&#8204;&nbsp;'.repeat(120);
-  const font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
-  const detailRow = (label, value) => value ? `
-              <tr>
-                <td style="padding:10px 0;border-top:1px solid #ececea;font:14px/1.4 ${font};color:#6b6f78">${label}</td>
-                <td align="right" style="padding:10px 0;border-top:1px solid #ececea;font:600 14px/1.4 ${font};color:#17191e">${e(value)}</td>
-              </tr>` : '';
-  const details = detailRow('Occasion', family.occasion) + detailRow('Budget', family.budget);
-
-  const html = `<!doctype html>
+  return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head>
 <body style="margin:0;padding:0;background:#f4f4f1">
-  <div style="display:none;font-size:1px;color:#f4f4f1;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all">${preview}${previewPad}</div>
+  <div style="display:none;font-size:1px;color:#f4f4f1;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all">${escapeHtml(preview)}${previewPad}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f1">
     <tr><td align="center" style="padding:32px 16px">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px">
-
-        <!-- header -->
-        <tr><td align="center" style="padding:0 0 20px;font:20px/1 Georgia,'Times New Roman',serif;color:#2446c7">
-          Secret Macabi
-        </td></tr>
-
-        <!-- card -->
+        <tr><td align="center" style="padding:0 0 20px;font:20px/1 ${SERIF};color:#2446c7">Secret Macabi</td></tr>
         <tr><td style="background:#ffffff;border:1px solid #e4e4e0;border-radius:14px;padding:32px 32px 28px">
-          <p style="margin:0 0 6px;font:15px/1.5 ${font};color:#17191e">Hi ${e(giver.name)},</p>
-          <p style="margin:0 0 24px;font:15px/1.5 ${font};color:#6b6f78">The names have been drawn. Here's who you're shopping for.</p>
-
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef1fc;border-radius:10px">
-            <tr><td align="center" style="padding:22px 16px">
-              <div style="font:600 12px/1 ${font};letter-spacing:1.5px;text-transform:uppercase;color:#2446c7">Your match</div>
-              <div style="padding-top:10px;font:28px/1.2 Georgia,'Times New Roman',serif;color:#17191e">${e(receiver.name)}</div>
-            </td></tr>
-          </table>
-
-          ${details ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px">${details}
-              <tr><td colspan="2" style="border-top:1px solid #ececea;font-size:0;line-height:0">&nbsp;</td></tr>
-          </table>` : ''}
-
-          <p style="margin:24px 0 0;font:15px/1.5 ${font}">
-            🎁&nbsp; <a href="${e(wishlistUrl)}" style="color:#2446c7;font-weight:600;text-decoration:underline">See ${e(receiver.name)}'s wishlist</a>
-          </p>
+${inner}
         </td></tr>
-
-        <!-- footer -->
-        <tr><td align="center" style="padding:20px 8px 0;font:13px/1.6 ${font};color:#8a8e96">
-          Remember, it's a secret 🤫${family.signoff ? `<br>${e(family.signoff)}` : ''}
+        <tr><td align="center" style="padding:20px 8px 0;font:13px/1.6 ${FONT};color:#8a8e96">
+          ${escapeHtml(footer)}${signoff ? `<br>${escapeHtml(signoff)}` : ''}
         </td></tr>
-
       </table>
     </td></tr>
   </table>
 </body></html>`;
+}
+
+const emailText = (text, color = '#17191e', margin = '0 0 6px') =>
+  `<p style="margin:${margin};font:15px/1.5 ${FONT};color:${color}">${text}</p>`;
+
+function highlightBox(label, value) {
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef1fc;border-radius:10px">
+            <tr><td align="center" style="padding:22px 16px">
+              <div style="font:600 12px/1 ${FONT};letter-spacing:1.5px;text-transform:uppercase;color:#2446c7">${escapeHtml(label)}</div>
+              <div style="padding-top:10px;font:28px/1.2 ${SERIF};color:#17191e">${escapeHtml(value)}</div>
+            </td></tr>
+          </table>`;
+}
+
+function detailRows(family) {
+  const row = (label, value) => value ? `
+      <tr>
+        <td style="padding:10px 0;border-top:1px solid #ececea;font:14px/1.4 ${FONT};color:#6b6f78">${label}</td>
+        <td align="right" style="padding:10px 0;border-top:1px solid #ececea;font:600 14px/1.4 ${FONT};color:#17191e">${escapeHtml(value)}</td>
+      </tr>` : '';
+  const rows = row('Occasion', family.occasion) + row('Budget', family.budget);
+  return rows ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px">${rows}
+      <tr><td colspan="2" style="border-top:1px solid #ececea;font-size:0;line-height:0">&nbsp;</td></tr>
+    </table>` : '';
+}
+
+const giftLink = (url, label) =>
+  `<p style="margin:24px 0 0;font:15px/1.5 ${FONT}">🎁&nbsp; <a href="${escapeHtml(url)}" style="color:#2446c7;font-weight:600;text-decoration:underline">${escapeHtml(label)}</a></p>`;
+
+// Plain-text version for mail apps that don't show HTML; collapses repeated blank lines.
+const plainText = (lines) => lines.filter((line, i, all) => line !== '' || all[i - 1] !== '').join('\n').trim();
+
+// ---------- the assignment email ----------
+function buildEmail(family, giver, receiver, wishlistUrl) {
+  const subject = (family.email_subject || 'Your Secret Macabi match is here!').split('{name}').join(giver.name);
+  const body = plainText([
+    'Your Secret Macabi match is inside 🤫', '', '', '',
+    `Hi ${giver.name},`, '',
+    `You're giving a gift to: ${receiver.name}`,
+    family.occasion ? `Occasion: ${family.occasion}` : '',
+    family.budget ? `Budget: ${family.budget}` : '', '',
+    `🎁 ${receiver.name}'s wishlist: ${wishlistUrl}`, '',
+    "Remember, it's a secret!", family.signoff || ''
+  ]);
+  const html = emailShell({
+    preview: 'Your Secret Macabi match is inside 🤫 Open to find out!',
+    signoff: family.signoff,
+    inner: emailText(`Hi ${escapeHtml(giver.name)},`) +
+      emailText("The names have been drawn. Here's who you're shopping for.", '#6b6f78', '0 0 24px') +
+      highlightBox('Your match', receiver.name) +
+      detailRows(family) +
+      giftLink(wishlistUrl, `See ${receiver.name}'s wishlist`)
+  });
+  return { subject, body, html };
+}
+
+// ---------- the heads-up email (sent before the draw) ----------
+const WHEN_OPTIONS = { tomorrow: 'Tomorrow', '2days': 'In 2 days', '3days': 'In 3 days', nextweek: 'Next week' };
+
+function buildHeadsUpEmail(family, person, whenKey, wishlistUrl) {
+  const when = WHEN_OPTIONS[whenKey];
+  const whenLower = when.toLowerCase();
+  const subject = `The Secret Macabi drawing is ${whenLower}!`;
+  const body = plainText([
+    `Hi ${person.name},`, '',
+    `Get ready! The Secret Macabi drawing is ${whenLower}.`,
+    'Add a few gift ideas to your wishlist so your Secret Macabi knows what you love.', '',
+    family.occasion ? `Occasion: ${family.occasion}` : '',
+    family.budget ? `Budget: ${family.budget}` : '', '',
+    `🎁 Your wishlist: ${wishlistUrl}`, '',
+    family.signoff || ''
+  ]);
+  const html = emailShell({
+    preview: `The drawing is ${whenLower}. Add to your wishlist before names are drawn 🎁`,
+    signoff: family.signoff,
+    footer: 'See you soon!',
+    inner: emailText(`Hi ${escapeHtml(person.name)},`) +
+      emailText('Get ready! Add a few gift ideas to your wishlist so your Secret Macabi knows what you love.', '#6b6f78', '0 0 24px') +
+      highlightBox('The drawing is', when) +
+      detailRows(family) +
+      giftLink(wishlistUrl, 'Add to your wishlist')
+  });
   return { subject, body, html };
 }
 
@@ -275,6 +307,60 @@ app.post('/api/send-assignments', async (req, res) => {
   }
 });
 
-app.listen(Number(PORT), () => {
-  console.log(`Secret Macabi API listening on http://localhost:${PORT}`);
+// Heads-up email to everyone taking part, sent before the draw.
+// Body: { familyId: uuid, when: 'tomorrow' | '2days' | '3days' | 'nextweek' }
+app.post('/api/send-heads-up', async (req, res) => {
+  try {
+    const auth = await userClient(req);
+    if (!auth) return res.status(401).json({ ok: false, error: 'Please log in again.' });
+    const { sb, user } = auth;
+    const { familyId, when } = req.body || {};
+    if (!familyId || !WHEN_OPTIONS[when]) return res.status(400).json({ ok: false, error: 'Pick when the drawing is.' });
+
+    // RLS: these only return rows if this user is an admin of the family.
+    const { data: family, error: famError } = await sb.from('families')
+      .select('id, name, budget, occasion, signoff, share_token').eq('id', familyId).maybeSingle();
+    if (famError) throw famError;
+    if (!family) return res.status(403).json({ ok: false, error: 'Family not found, or you are not an admin of it.' });
+
+    const { data: people, error: peopleError } = await sb.from('members')
+      .select('id, name, email').eq('family_id', familyId).eq('active', true);
+    if (peopleError) throw peopleError;
+
+    const results = [];
+    const outgoing = [];
+    for (const person of people) {
+      if (!person.email) { results.push({ id: person.id, ok: false, error: `${person.name} has no email address.` }); continue; }
+      const url = new URL('wishlist.html', SITE_URL);
+      url.searchParams.set('f', family.share_token);
+      url.searchParams.set('me', person.id);
+      url.searchParams.set('open', person.id);
+      outgoing.push({ id: person.id, to: person.email, ...buildHeadsUpEmail(family, person, when, url.toString()) });
+    }
+    if (!outgoing.length) return res.json({ ok: false, results, error: 'Nobody taking part has an email address.' });
+    if (!withinRateLimit(user.id, outgoing.length)) {
+      return res.status(429).json({ ok: false, error: 'Too many emails this hour. Try again later.' });
+    }
+
+    for (let i = 0; i < outgoing.length; i += 50) {
+      const batch = outgoing.slice(i, i + 50);
+      const result = await callMailer({ senderName: family.signoff || 'Secret Macabi', messages: batch });
+      if (!result.ok) { batch.forEach((m) => results.push({ id: m.id, ok: false, error: result.error })); continue; }
+      result.results.forEach((r) => results.push({ id: r.id, ok: r.ok, error: r.error }));
+    }
+    res.json({ ok: results.every((r) => r.ok), results });
+  } catch (error) {
+    console.error('send-heads-up failed:', error);
+    res.status(500).json({ ok: false, error: error.message || 'Email failed to send.' });
+  }
 });
+
+// Start the server when run directly; allow tests/previews to import the email builders.
+if (require.main === module) {
+  app.listen(Number(PORT), () => {
+    console.log(`Secret Macabi API listening on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = { buildEmail, buildHeadsUpEmail };
+

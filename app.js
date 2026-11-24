@@ -652,6 +652,31 @@
     await loadDraws();
   }
 
+  async function sendHeadsUp() {
+    const recipients = members.filter((m) => m.active && m.email);
+    if (!recipients.length) { toast("Nobody taking part has an email yet.", "bad"); return; }
+    const select = $("headsUpWhen");
+    const whenText = select.options[select.selectedIndex].text.replace(/^Drawing is /, "").toLowerCase();
+    if (!window.confirm(`Email ${recipients.length} ${recipients.length === 1 ? "person" : "people"} that the drawing is ${whenText}?`)) return;
+    const button = $("sendHeadsUp");
+    button.disabled = true;
+    button.textContent = "Sending…";
+    try {
+      const result = await apiPost("/api/send-heads-up", { familyId: family.id, when: select.value });
+      const failed = (result.results || []).filter((r) => !r.ok);
+      const sent = (result.results || []).filter((r) => r.ok).length;
+      if (!result.results) notice = banner("bad", result.error || "Sending failed.");
+      else if (failed.length) notice = `<div class="banner bad">Heads-up sent to ${sent}. ${failed.length} failed:<br>${failed.map((f) => esc(f.error)).join("<br>")}</div>`;
+      else notice = banner("ok", `Heads-up sent to ${sent} ${sent === 1 ? "person" : "people"}.`);
+    } catch (error) {
+      notice = banner("bad", friendlyError(error));
+    } finally {
+      button.disabled = false;
+      button.textContent = "Send";
+      renderDraw();
+    }
+  }
+
   function nameOf(id) { return (memberById(id) || { name: "(removed)" }).name; }
 
   function resultsText(rows) {
@@ -685,6 +710,7 @@
     } else {
       controls.innerHTML = '<button class="primary" data-act="draw">Draw names</button>';
     }
+    $("headsUpBar").hidden = !!preview;
     $("drawMsg").innerHTML = notice + status;
 
     const box = $("results");
@@ -847,6 +873,7 @@
   });
   $("regenShare").addEventListener("click", regenerateShare);
   $("testEmail").addEventListener("click", testEmail);
+  $("sendHeadsUp").addEventListener("click", sendHeadsUp);
   $("addAdminForm").addEventListener("submit", addAdmin);
   $("adminList").addEventListener("click", removeAdmin);
   window.addEventListener("beforeunload", (e) => { if (pendingSaves) { e.preventDefault(); e.returnValue = ""; } });
