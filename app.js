@@ -43,6 +43,11 @@
     if (/Failed to fetch|NetworkError/i.test(msg)) return "Couldn't reach the server. Check your connection and try again.";
     return msg;
   }
+  function authMessage(text, kind) {
+    const el = $("authMsg");
+    el.textContent = text || "";
+    el.className = kind === "bad" ? "admin-error" : "hint";
+  }
   function views(name) {
     ["authView", "familyView", "appView"].forEach((v) => { $(v).hidden = v !== name; });
   }
@@ -72,27 +77,35 @@
   // ================================================================= AUTH
   async function signIn(event) {
     event.preventDefault();
+    authMessage("Signing in…");
     const { error } = await sb.auth.signInWithPassword({ email: $("authEmail").value.trim(), password: $("authPassword").value });
-    $("authMsg").textContent = error ? friendlyError(error) : "";
+    if (!error) { authMessage(""); return; }
+    authMessage(/invalid login credentials/i.test(error.message)
+      ? "Wrong email or password. First time here? Press “Create account” instead."
+      : friendlyError(error), "bad");
   }
 
   async function signUp() {
     const email = $("authEmail").value.trim();
     const password = $("authPassword").value;
     if (!email || password.length < 8) {
-      $("authMsg").textContent = "Enter your email and a password of at least 8 characters, then press Create account.";
+      authMessage("Enter your email and a password of at least 8 characters, then press Create account.", "bad");
       return;
     }
+    authMessage("Creating your account…");
     const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: pageUrl } });
-    if (error) { $("authMsg").textContent = friendlyError(error); return; }
-    $("authMsg").textContent = data.session ? "" : "Account created. Check your email to confirm it, then sign in.";
+    if (error) { authMessage(/already registered/i.test(error.message) ? "That email already has an account. Press Sign in." : friendlyError(error), "bad"); return; }
+    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+      authMessage("That email already has an account. Press Sign in.", "bad"); return;
+    }
+    authMessage(data.session ? "" : "Account created. Check your email to confirm it, then sign in.");
   }
 
   async function forgotPassword() {
     const email = $("authEmail").value.trim();
-    if (!email) { $("authMsg").textContent = "Type your email first, then press Forgot password."; return; }
+    if (!email) { authMessage("Type your email first, then press Forgot password.", "bad"); return; }
     const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: pageUrl });
-    $("authMsg").textContent = error ? friendlyError(error) : "If that account exists, a reset link is on its way.";
+    authMessage(error ? friendlyError(error) : "If that account exists, a reset link is on its way.", error ? "bad" : "");
   }
 
   async function signOut(event) {
