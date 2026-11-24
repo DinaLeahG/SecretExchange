@@ -87,35 +87,80 @@ async function callMailer(payload) {
 
 function buildEmail(family, giver, receiver, wishlistUrl) {
   const subject = (family.email_subject || 'Your Secret Macabi match is here!').split('{name}').join(giver.name);
-  const forWhat = family.occasion ? ` for the ${family.occasion}` : '';
-  const budgetLine = family.budget ? `The gift budget is ${family.budget}.` : '';
+  const e = escapeHtml;
+
+  // ---- plain-text version (for mail apps that don't show HTML) ----
   const body = [
     'Your Secret Macabi match is inside 🤫',
     '', '', '',
     `Hi ${giver.name},`,
     '',
-    `You have been assigned ${receiver.name}${forWhat}. ${budgetLine}`.trim(),
+    `You're giving a gift to: ${receiver.name}`,
+    family.occasion ? `Occasion: ${family.occasion}` : '',
+    family.budget ? `Budget: ${family.budget}` : '',
     '',
-    `🎁 Check ${receiver.name}'s wishlist: ${wishlistUrl}`,
+    `🎁 ${receiver.name}'s wishlist: ${wishlistUrl}`,
     '',
-    'Enjoy!',
+    'Remember, it\'s a secret!',
     family.signoff || ''
-  ].join('\n').trim();
+  ].filter((line, i, all) => line !== '' || all[i - 1] !== '').join('\n').trim();
+
+  // ---- HTML version ----
   // Hidden "preheader": inbox previews show this instead of the first sentence (which names the match).
   // The trailing invisible characters stop Gmail from pulling body text into the preview.
   const preview = 'Your Secret Macabi match is inside 🤫 Open to find out!';
   const previewPad = '&#8204;&nbsp;'.repeat(120);
-  const html = `
-    <div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all">${preview}${previewPad}</div>
-    <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1d2439">
-      <p>Hi ${escapeHtml(giver.name)},</p>
-      <p>You have been assigned <strong style="font-size:18px">${escapeHtml(receiver.name)}</strong>${escapeHtml(forWhat)}.
-         ${budgetLine ? `<br>The gift budget is <strong>${escapeHtml(family.budget)}</strong>.` : ''}</p>
-      <p style="margin:20px 0;font-size:16px">
-        🎁 <a href="${escapeHtml(wishlistUrl)}" style="color:#2446c7;font-weight:bold;text-decoration:underline">Check ${escapeHtml(receiver.name)}'s wishlist</a>
-      </p>
-      <p>Enjoy!${family.signoff ? `<br>${escapeHtml(family.signoff)}` : ''}</p>
-    </div>`;
+  const font = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+  const detailRow = (label, value) => value ? `
+              <tr>
+                <td style="padding:10px 0;border-top:1px solid #ececea;font:14px/1.4 ${font};color:#6b6f78">${label}</td>
+                <td align="right" style="padding:10px 0;border-top:1px solid #ececea;font:600 14px/1.4 ${font};color:#17191e">${e(value)}</td>
+              </tr>` : '';
+  const details = detailRow('Occasion', family.occasion) + detailRow('Budget', family.budget);
+
+  const html = `<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"></head>
+<body style="margin:0;padding:0;background:#f4f4f1">
+  <div style="display:none;font-size:1px;color:#f4f4f1;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all">${preview}${previewPad}</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f4f1">
+    <tr><td align="center" style="padding:32px 16px">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:520px">
+
+        <!-- header -->
+        <tr><td align="center" style="padding:0 0 20px;font:20px/1 Georgia,'Times New Roman',serif;color:#2446c7">
+          Secret Macabi
+        </td></tr>
+
+        <!-- card -->
+        <tr><td style="background:#ffffff;border:1px solid #e4e4e0;border-radius:14px;padding:32px 32px 28px">
+          <p style="margin:0 0 6px;font:15px/1.5 ${font};color:#17191e">Hi ${e(giver.name)},</p>
+          <p style="margin:0 0 24px;font:15px/1.5 ${font};color:#6b6f78">The names have been drawn. Here's who you're shopping for.</p>
+
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#eef1fc;border-radius:10px">
+            <tr><td align="center" style="padding:22px 16px">
+              <div style="font:600 12px/1 ${font};letter-spacing:1.5px;text-transform:uppercase;color:#2446c7">Your match</div>
+              <div style="padding-top:10px;font:28px/1.2 Georgia,'Times New Roman',serif;color:#17191e">${e(receiver.name)}</div>
+            </td></tr>
+          </table>
+
+          ${details ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px">${details}
+              <tr><td colspan="2" style="border-top:1px solid #ececea;font-size:0;line-height:0">&nbsp;</td></tr>
+          </table>` : ''}
+
+          <p style="margin:24px 0 0;font:15px/1.5 ${font}">
+            🎁&nbsp; <a href="${e(wishlistUrl)}" style="color:#2446c7;font-weight:600;text-decoration:underline">See ${e(receiver.name)}'s wishlist</a>
+          </p>
+        </td></tr>
+
+        <!-- footer -->
+        <tr><td align="center" style="padding:20px 8px 0;font:13px/1.6 ${font};color:#8a8e96">
+          Remember, it's a secret 🤫${family.signoff ? `<br>${e(family.signoff)}` : ''}
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body></html>`;
   return { subject, body, html };
 }
 
