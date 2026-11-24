@@ -191,6 +191,7 @@
     expanded.clear();
     Object.keys(revealed).forEach((k) => delete revealed[k]);
     views("appView");
+    $("menuEmail").textContent = session.user.email;
     showTab(storageGet(LAST_TAB_KEY) || "people");
     setupHeadsUpDate();
     renderSettings();
@@ -903,6 +904,16 @@
   $("testEmail").addEventListener("click", testEmail);
   $("sendHeadsUp").addEventListener("click", sendHeadsUp);
   $("addAdminForm").addEventListener("submit", addAdmin);
+
+  // Phone menu (☰): open/close, and close on outside click, Escape, or choosing an item.
+  function setMenu(open) {
+    $("appMenu").classList.toggle("open", open);
+    $("menuBtn").setAttribute("aria-expanded", open);
+  }
+  $("menuBtn").addEventListener("click", (e) => { e.stopPropagation(); setMenu(!$("appMenu").classList.contains("open")); });
+  $("appMenu").addEventListener("click", (e) => { if (e.target.closest("a, button")) setMenu(false); });
+  document.addEventListener("click", (e) => { if (!e.target.closest("#appMenu")) setMenu(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") setMenu(false); });
   $("adminList").addEventListener("click", removeAdmin);
   window.addEventListener("beforeunload", (e) => { if (pendingSaves) { e.preventDefault(); e.returnValue = ""; } });
 

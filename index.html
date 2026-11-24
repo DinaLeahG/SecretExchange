@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=17">
+  <link rel="stylesheet" href="styles.css?v=20">
 </head>
 <body>
   <div id="globalMsg" class="toast" role="status" hidden></div>
@@ -57,9 +57,15 @@
         </div>
         <div class="appbar-actions">
           <span id="saveState" class="save-state" aria-live="polite"></span>
-          <a id="wishlistNav" class="link" href="wishlist.html" target="_blank" rel="noopener">Wish lists ↗</a>
-          <button type="button" id="switchFamily" class="link">Switch</button>
-          <button type="button" class="link" data-act="signout">Sign out</button>
+          <button type="button" id="menuBtn" class="menu-btn" aria-label="Menu" aria-expanded="false" aria-controls="appMenu">
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          </button>
+          <nav id="appMenu" class="app-menu" aria-label="Account">
+            <span id="menuEmail" class="menu-email"></span>
+            <a id="wishlistNav" class="link" href="wishlist.html" target="_blank" rel="noopener">Wish lists ↗</a>
+            <button type="button" id="switchFamily" class="link">Switch family</button>
+            <button type="button" class="link" data-act="signout">Sign out</button>
+          </nav>
         </div>
       </div>
       <nav class="tabs" role="tablist">
@@ -75,8 +81,8 @@
         <div class="panel-head">
           <h2>People <span class="count" id="counts"></span></h2>
           <div class="row">
-            <button type="button" id="removeAllPeople" class="link danger" hidden>Remove all</button>
             <label class="file-btn">Import list<input id="peopleFile" type="file" accept=".txt,.csv,text/plain" hidden></label>
+            <button type="button" id="removeAllPeople" class="link danger" hidden>Remove all</button>
           </div>
         </div>
 
@@ -173,6 +179,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
   <script src="config.js?v=4"></script>
-  <script src="app.js?v=18"></script>
+  <script src="app.js?v=19"></script>
 </body>
 </html>
