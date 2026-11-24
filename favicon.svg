@@ -1,4 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" aria-label="Present emoji icon">
-  <rect width="128" height="128" rx="24" fill="#1d47b3"/>
-  <text x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" font-size="72" style="font-family: Apple Color Emoji, Segoe UI Emoji, Noto Color Emoji, sans-serif;">🎁</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="14" fill="#2449c8"/>
+  <g fill="#ffffff">
+    <rect x="13" y="30" width="7" height="22" rx="2"/>
+    <rect x="28.5" y="22" width="7" height="30" rx="2"/>
+    <rect x="44" y="30" width="7" height="22" rx="2"/>
+  </g>
+  <g fill="#f2c14e">
+    <ellipse cx="16.5" cy="22.5" rx="3.6" ry="5"/>
+    <ellipse cx="32" cy="14.5" rx="3.6" ry="5"/>
+    <ellipse cx="47.5" cy="22.5" rx="3.6" ry="5"/>
+  </g>
 </svg>
