@@ -20,6 +20,8 @@
     if (x.indexOf(" ") < 0 || y.indexOf(" ") < 0) return x.split(" ")[0] === y.split(" ")[0];
     return false;
   }
+  // History lines sometimes say "Ezzi drew - Azi"; treat "Ezzi drew" as "Ezzi".
+  function cleanGiver(name) { return String(name || "").replace(/\s+(drew|draws|got|gets|picked|has|had)\s*$/i, "").trim(); }
   function list(value) { return String(value || "").split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean); }
   function storageGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
   function storageSet(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
@@ -406,10 +408,9 @@
     const cleaned = String(line || "").replace(/^﻿/, "").trim();
     if (!cleaned) return null;
     const m = cleaned.match(/^(.+?)\s*(?:->|=>|→|–|—|:)\s*(.+)$/) || cleaned.match(/^(.+?)\s+-\s*(.+)$/);
-    const tidy = (g) => g.replace(/\s+(drew|draws|got|gets|picked|has|had)$/i, "").trim();
-    if (m) return { giver: tidy(m[1].trim()), receiver: m[2].trim() };
+    if (m) return { giver: cleanGiver(m[1]), receiver: m[2].trim() };
     const i = cleaned.lastIndexOf("-");
-    if (i > 0 && i < cleaned.length - 1) return { giver: cleaned.slice(0, i).trim(), receiver: cleaned.slice(i + 1).trim() };
+    if (i > 0 && i < cleaned.length - 1) return { giver: cleanGiver(cleaned.slice(0, i)), receiver: cleaned.slice(i + 1).trim() };
     // Headings from old result files ("ADULTS", "/\/\/\", "Welcome to ...!") are skipped quietly.
     if (!/[a-z]/i.test(cleaned) || /^(adults?|kids?)$/i.test(cleaned) || /!$/.test(cleaned) || cleaned === cleaned.toUpperCase()) return null;
     return { bad: cleaned };
@@ -434,8 +435,8 @@
     // Group by giver so each person's history sits on one line.
     const groups = new Map();
     pastPairs.forEach((p) => {
-      const k = norm(p.giver);
-      if (!groups.has(k)) groups.set(k, { name: p.giver, pairs: [] });
+      const k = norm(cleanGiver(p.giver));
+      if (!groups.has(k)) groups.set(k, { name: cleanGiver(p.giver), pairs: [] });
       groups.get(k).pairs.push(p);
     });
     $("pastList").innerHTML = Array.from(groups.values()).map((g) =>
@@ -451,7 +452,7 @@
     const parsed = $("historyText").value.replace(/\r/g, "").split("\n").map(parseHistoryLine).filter(Boolean);
     const bad = parsed.filter((p) => p.bad).map((p) => p.bad);
     const key = (g, r) => norm(g) + "|" + norm(r);
-    const have = new Set(pastPairs.map((p) => key(p.giver, p.receiver)));
+    const have = new Set(pastPairs.map((p) => key(cleanGiver(p.giver), p.receiver)));
     const rows = [];
     let dupes = 0;
     parsed.filter((p) => !p.bad).forEach((p) => {
@@ -491,7 +492,7 @@
     let ids;
     if (one) ids = [one.dataset.pair];
     else if (all) {
-      ids = pastPairs.filter((p) => norm(p.giver) === norm(all.dataset.giver)).map((p) => p.id);
+      ids = pastPairs.filter((p) => norm(cleanGiver(p.giver)) === norm(all.dataset.giver)).map((p) => p.id);
       if (!window.confirm(`Remove all ${ids.length} past draws for ${all.dataset.giver}?`)) return;
     } else return;
     try {
@@ -531,7 +532,7 @@
   function blocked(giver, other, recentReceivers) {
     if ((recentReceivers.get(giver.id) || new Set()).has(other.id)) return true;
     if ((giver.past_matches || []).some((n) => sameName(n, other.name))) return true;
-    if (pastPairs.some((p) => pastNameMatches(p.giver, giver.name) && pastNameMatches(p.receiver, other.name))) return true;
+    if (pastPairs.some((p) => pastNameMatches(cleanGiver(p.giver), giver.name) && pastNameMatches(p.receiver, other.name))) return true;
     if (list(giver.exclusions).some((n) => sameName(n, other.name))) return true;
     if (giver.group_name === "Adults" && other.group_name === "Adults" && giver.gender && other.gender && giver.gender !== other.gender) return true;
     return false;
