@@ -514,7 +514,8 @@
       preview = null;
       notice = banner("ok", "Draw saved. Ready to send.");
       await loadDraws();
-    } catch (e) {}
+      return true;
+    } catch (e) { return false; }
   }
 
   async function deleteCurrentDraw() {
@@ -577,13 +578,15 @@
     let status = "";
 
     if (preview) {
-      controls.innerHTML = '<button class="ghost" data-act="cancel">Cancel</button><button data-act="draw">Reshuffle</button><button class="primary" data-act="save">Save draw</button>';
+      controls.innerHTML = '<button class="ghost" data-act="cancel">Cancel</button><button data-act="draw">Reshuffle</button><button data-act="save">Save draw</button><button class="primary" data-act="saveSend">Save &amp; send all</button>';
       status = banner("gold", "Preview. Save to lock it in.");
     } else if (d) {
       const unsent = rows.filter((r) => !r.sent_at).length;
       controls.innerHTML =
         '<button class="ghost" data-act="deleteDraw">Delete</button><button class="ghost" data-act="download">Download</button><button data-act="draw">New draw</button>' +
-        (unsent ? `<button class="primary" data-act="sendAll">Send ${unsent} email${unsent === 1 ? "" : "s"}</button>` : "");
+        (unsent
+          ? `<button class="primary" data-act="sendAll">Send all${unsent < rows.length ? ` (${unsent} left)` : ""}</button>`
+          : '<button data-act="resendAll">Resend all</button>');
       status = `<p class="muted">Drawn ${esc(new Date(d.created_at).toLocaleDateString())} · ${rows.length - unsent}/${rows.length} sent</p>`;
     } else {
       controls.innerHTML = '<button class="primary" data-act="draw">Draw names</button>';
@@ -603,7 +606,7 @@
           const shown = revealed[key];
           return `<div class="pair" data-key="${esc(key)}" data-id="${esc(r.id || "")}">
             <div class="who"><strong>${esc(giver.name)}</strong><span class="muted">${giver.email ? esc(giver.email) : "No email"}</span></div>
-            <button type="button" class="match ${shown ? "" : "hidden-match"}" data-act="reveal" title="${shown ? "Hide" : "Show"}">${shown ? esc(nameOf(r.receiver_id)) : "••••"}</button>
+            <button type="button" class="match ${shown ? "" : "hidden-match"}" data-act="reveal" title="${shown ? "Hide" : "Show"}"><span class="arrow" aria-hidden="true">→</span>${shown ? esc(nameOf(r.receiver_id)) : "••••"}</button>
             <div class="pair-status">
               ${r.sent_at ? '<span class="tag ok">Sent</span>' : ""}
               ${r.id ? `<button type="button" class="link" data-act="sendOne">${r.sent_at ? "Resend" : "Send"}</button>` : ""}
@@ -621,6 +624,8 @@
       if (act !== "download") notice = "";
       if (act === "draw") makeDraw();
       else if (act === "save") await saveDraw();
+      else if (act === "saveSend") { if (await saveDraw()) await sendEmails(currentDraw().id, null, false); }
+      else if (act === "resendAll") { if (window.confirm("Email everyone their match again?")) await sendEmails(currentDraw().id, null, true); }
       else if (act === "cancel") { preview = null; renderDraw(); }
       else if (act === "sendAll") await sendEmails(currentDraw().id, null, false);
       else if (act === "deleteDraw") await deleteCurrentDraw();

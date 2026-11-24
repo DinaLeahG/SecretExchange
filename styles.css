@@ -181,22 +181,24 @@ button:focus-visible, .file-btn:focus-within, a:focus-visible, summary:focus-vis
 
 /* ---------- people ---------- */
 .add-row {
-  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) 120px auto; gap: 8px;
+  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) 110px 190px 64px; gap: 8px;
   padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
 }
+.add-row button { grid-column: 4 / -1; justify-self: end; min-width: 96px; }
 .people { display: grid; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 .people .empty { border: 0; }
 .person { border-top: 1px solid var(--line); }
 .person:first-child { border-top: 0; }
 .person.inactive .person-main { opacity: .5; }
 .person-main {
-  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) 120px minmax(0, auto) 64px;
+  display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) 110px 190px 64px;
   gap: 8px; align-items: center; padding: 8px 12px;
 }
 .person-main input, .person-main select { border-color: transparent; background-color: transparent; }
 .person-main input:hover, .person-main select:hover { border-color: var(--line); }
 .person-main input:focus, .person-main select:focus { border-color: var(--accent); background-color: var(--surface); }
-.tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+.tags { display: flex; gap: 4px; flex-wrap: wrap; justify-content: flex-end; min-width: 0; }
+.person-main input { overflow: hidden; text-overflow: ellipsis; }
 .icon-btn { padding: 6px 10px; font-size: 13px; font-weight: 500; color: var(--muted); background: transparent; border-color: transparent; }
 .icon-btn:hover { color: var(--ink); }
 .person.open { background: #fafaf8; }
@@ -216,6 +218,7 @@ button:focus-visible, .file-btn:focus-within, a:focus-visible, summary:focus-vis
 .who { display: grid; min-width: 0; }
 .who .muted { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .match { justify-content: flex-start; font-weight: 600; border-color: transparent; background: var(--sunk); }
+.match .arrow { color: var(--accent); font-weight: 600; letter-spacing: 0; margin-right: 8px; }
 .match.hidden-match { color: var(--muted); letter-spacing: .2em; font-weight: 400; }
 .pair-status { display: flex; align-items: center; gap: 10px; justify-content: flex-end; min-width: 110px; }
 
@@ -239,7 +242,7 @@ details.settings-block:not([open]) { gap: 0; }
   .appbar-actions { gap: 10px; width: 100%; justify-content: flex-end; }
   .add-row { grid-template-columns: minmax(0, 1fr) 110px; }
   .add-row #newEmail { grid-column: 1 / -1; grid-row: 2; }
-  .add-row button { grid-column: 1 / -1; }
+  .add-row button { grid-column: 1 / -1; justify-self: stretch; }
   .person-main { grid-template-columns: minmax(0, 1fr) 100px 56px; }
   .person-main [data-f="email"] { grid-column: 1 / -1; grid-row: 2; }
   .person-main .tags { display: none; }
