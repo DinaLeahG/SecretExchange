@@ -90,6 +90,8 @@ function buildEmail(family, giver, receiver, wishlistUrl) {
   const forWhat = family.occasion ? ` for the ${family.occasion}` : '';
   const budgetLine = family.budget ? `The gift budget is ${family.budget}.` : '';
   const body = [
+    'Your Secret Macabi match is inside 🤫',
+    '', '', '',
     `Hi ${giver.name},`,
     '',
     `You have been assigned ${receiver.name}${forWhat}. ${budgetLine}`.trim(),
@@ -99,7 +101,12 @@ function buildEmail(family, giver, receiver, wishlistUrl) {
     'Enjoy!',
     family.signoff || ''
   ].join('\n').trim();
+  // Hidden "preheader": inbox previews show this instead of the first sentence (which names the match).
+  // The trailing invisible characters stop Gmail from pulling body text into the preview.
+  const preview = 'Your Secret Macabi match is inside 🤫 Open to find out!';
+  const previewPad = '&#8204;&nbsp;'.repeat(120);
   const html = `
+    <div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all">${preview}${previewPad}</div>
     <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1d2439">
       <p>Hi ${escapeHtml(giver.name)},</p>
       <p>You have been assigned <strong style="font-size:18px">${escapeHtml(receiver.name)}</strong>${escapeHtml(forWhat)}.
