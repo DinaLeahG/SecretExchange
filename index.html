@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=21">
+  <link rel="stylesheet" href="styles.css?v=22">
 </head>
 <body>
   <div id="globalMsg" class="toast" role="status" hidden></div>
@@ -133,13 +133,14 @@
             <label><span>Occasion</span><input data-setting="occasion" maxlength="100" placeholder="Chanukah party, Dec 20"></label>
             <label><span>Email sign-off</span><input data-setting="signoff" maxlength="100" placeholder="Love, Aunt Miriam"></label>
             <label class="wide"><span>Email subject</span><input data-setting="email_subject" maxlength="200" placeholder="{name}, your Secret Macabi match is here"></label>
-            <label><span>Skip matches from last</span>
+            <label><span>Avoid repeats from site draws</span>
               <select data-setting="avoid_recent_draws">
-                <option value="0">No restriction</option>
-                <option value="1">1 draw</option>
-                <option value="2">2 draws</option>
-                <option value="3">3 draws</option>
-              </select></label>
+                <option value="0">Don't check</option>
+                <option value="1">Last draw</option>
+                <option value="2">Last 2 draws</option>
+                <option value="3">Last 3 draws</option>
+              </select>
+              <small class="field-note">Only draws made on this site. Uploaded past draws always apply.</small></label>
           </div>
         </div>
 
@@ -170,7 +171,7 @@
 
         <details class="settings-block">
           <summary><h3>Past draws <span class="count" id="pastCount"></span></h3></summary>
-          <p class="muted">One per line: <code>Giver - Receiver</code>. Saved pairs won't repeat.</p>
+          <p class="muted">One per line: <code>Giver - Receiver</code>. These pairs are always avoided, every year, until you remove them.</p>
           <textarea id="historyText" placeholder="Leah Rosen - Ben&#10;Ben Rosen - Noa"></textarea>
           <div class="row">
             <button id="applyHistory" type="button" class="primary">Save</button>
@@ -186,6 +187,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
   <script src="config.js?v=4"></script>
-  <script src="app.js?v=21"></script>
+  <script src="app.js?v=22"></script>
 </body>
 </html>

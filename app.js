@@ -580,7 +580,7 @@
       }
       return false;
     }
-    if (!dfs(0)) return { error: `No valid draw for ${label.toLowerCase()} with these rules. Remove an exclusion or relax "Skip matches".` };
+    if (!dfs(0)) return { error: `No valid draw for ${label.toLowerCase()} with these rules. Remove an exclusion or past draw, or lower "Avoid repeats from site draws" in Settings.` };
     return { pairs: group.map((g, i) => ({ giver_id: g.id, receiver_id: group[pick[i]].id })) };
   }
 
