@@ -60,6 +60,7 @@ Service → **Environment** → set:
 | `APPS_SCRIPT_SECRET` | same secret as step 2.3 |
 | `SITE_URL` | `https://YOUR-USERNAME.github.io/YOUR-REPO/` |
 | `ALLOWED_ORIGINS` | `https://YOUR-USERNAME.github.io` |
+| `APPROVED_SENDERS` | logins allowed to send email, comma-separated (e.g. `you@gmail.com,cousin@gmail.com`). Empty = nobody can send. |
 
 Delete the old `RESEND_API_KEY`, `FROM_EMAIL`, `GMAIL_*` variables. Build command `npm install`, start command `npm start`.
 Check `https://secretexchange.onrender.com/api/health` shows `"configured": true`.

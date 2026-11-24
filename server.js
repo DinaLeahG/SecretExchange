@@ -13,6 +13,9 @@ const APPS_SCRIPT_SECRET = env('APPS_SCRIPT_SECRET');
 const SITE_URL = env('SITE_URL');
 const ALLOWED_ORIGINS = env('ALLOWED_ORIGINS') || (SITE_URL ? new URL(SITE_URL).origin : '');
 const PORT = env('PORT', '10000');
+// Only these logged-in accounts may send email (from the site owner's Gmail).
+// Empty = nobody can send, so a missing setting fails safe.
+const APPROVED_SENDERS = new Set(env('APPROVED_SENDERS').split(',').map((e) => e.trim().toLowerCase()).filter(Boolean));
 const APPS_SCRIPT_URL_OK = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(APPS_SCRIPT_URL);
 // Safe-to-show fingerprint of the URL (not secret) so setup problems can be spotted from /api/health.
 const appsScriptHint = APPS_SCRIPT_URL ? APPS_SCRIPT_URL.slice(0, 40) + '…' + APPS_SCRIPT_URL.slice(-12) : '(missing)';
@@ -65,6 +68,9 @@ async function userClient(req) {
   if (error || !data?.user) return null;
   return { sb, user: data.user };
 }
+
+const NOT_APPROVED = 'Sending email isn\'t turned on for your account. Ask the site owner to approve your email address.';
+const isApprovedSender = (user) => !!user?.email && APPROVED_SENDERS.has(user.email.toLowerCase());
 
 async function callMailer(payload) {
   const response = await fetch(APPS_SCRIPT_URL, {
@@ -205,7 +211,8 @@ app.get('/api/health', (req, res) => {
     missing,
     appsScriptUrl: appsScriptHint,
     appsScriptUrlLooksValid: APPS_SCRIPT_URL_OK,
-    secretLength: APPS_SCRIPT_SECRET.length
+    secretLength: APPS_SCRIPT_SECRET.length,
+    approvedSenders: APPROVED_SENDERS.size
   });
 });
 
@@ -214,6 +221,7 @@ app.post('/api/test-email', async (req, res) => {
   try {
     const auth = await userClient(req);
     if (!auth) return res.status(401).json({ ok: false, error: 'Please log in again.' });
+    if (!isApprovedSender(auth.user)) return res.status(403).json({ ok: false, error: NOT_APPROVED });
     if (!withinRateLimit(auth.user.id, 1)) return res.status(429).json({ ok: false, error: 'Too many emails this hour.' });
 
     const result = await callMailer({
@@ -241,6 +249,7 @@ app.post('/api/send-assignments', async (req, res) => {
   try {
     const auth = await userClient(req);
     if (!auth) return res.status(401).json({ ok: false, error: 'Please log in again.' });
+    if (!isApprovedSender(auth.user)) return res.status(403).json({ ok: false, error: NOT_APPROVED });
     const { sb, user } = auth;
     const { drawId, assignmentIds, resend } = req.body || {};
     if (!drawId) return res.status(400).json({ ok: false, error: 'drawId is required.' });
@@ -313,6 +322,7 @@ app.post('/api/send-heads-up', async (req, res) => {
   try {
     const auth = await userClient(req);
     if (!auth) return res.status(401).json({ ok: false, error: 'Please log in again.' });
+    if (!isApprovedSender(auth.user)) return res.status(403).json({ ok: false, error: NOT_APPROVED });
     const { sb, user } = auth;
     const { familyId, when } = req.body || {};
     if (!familyId || !WHEN_OPTIONS[when]) return res.status(400).json({ ok: false, error: 'Pick when the drawing is.' });
