@@ -192,6 +192,7 @@
     Object.keys(revealed).forEach((k) => delete revealed[k]);
     views("appView");
     $("menuEmail").textContent = session.user.email;
+    $("avatar").textContent = (session.user.email || "?").trim().charAt(0).toUpperCase();
     showTab(storageGet(LAST_TAB_KEY) || "people");
     setupHeadsUpDate();
     renderSettings();
@@ -814,6 +815,7 @@
   function renderShare() {
     $("openShare").href = shareUrl();
     $("wishlistNav").href = shareUrl();
+    $("wishlistNavMenu").href = shareUrl();
   }
 
   async function regenerateShare() {

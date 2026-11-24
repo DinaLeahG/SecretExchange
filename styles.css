@@ -237,10 +237,45 @@ details.settings-block:not([open]) { gap: 0; }
 .admin-row:first-child { border-top: 0; }
 .admin-row .link { justify-self: end; }
 
-/* ---------- account menu: inline on desktop, ☰ dropdown on phones ---------- */
-.menu-btn { display: none; }
-.app-menu { display: flex; align-items: center; gap: 14px; }
-.menu-email { display: none; }
+/* ---------- top-right: Wish lists button + account dropdown ---------- */
+.mobile-only { display: none !important; }
+.appbar-actions { position: relative; }
+.nav-btn {
+  display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px;
+  border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface);
+  color: var(--ink); font-size: 14px; font-weight: 600; text-decoration: none;
+  transition: background .15s, border-color .15s;
+}
+.nav-btn:hover { background: var(--sunk); }
+.nav-btn svg { color: var(--accent); }
+.menu-btn {
+  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 8px 0 3px;
+  border: 1px solid var(--line-strong); border-radius: 999px; background: var(--surface); color: var(--muted);
+}
+.menu-btn:hover, .menu-btn[aria-expanded="true"] { background: var(--sunk); }
+.avatar {
+  width: 28px; height: 28px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;
+  background: var(--accent); color: #fff; font-size: 13px; font-weight: 700;
+}
+.app-menu {
+  display: none; position: absolute; right: 0; top: calc(100% + 8px); z-index: 30;
+  min-width: 240px; padding: 6px; flex-direction: column;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(16, 24, 40, .14);
+}
+.app-menu.open { display: flex; }
+.menu-head { display: grid; gap: 2px; padding: 10px 12px 12px; border-bottom: 1px solid var(--line); margin-bottom: 6px; }
+.menu-label { font-size: 12px; color: var(--muted); }
+.menu-email { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-sep { height: 1px; background: var(--line); margin: 6px 4px; }
+.menu-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px 12px;
+  border: 0; border-radius: 8px; background: none; color: var(--ink);
+  font-size: 14px; font-weight: 500; text-align: left; text-decoration: none; justify-content: flex-start;
+}
+.menu-item svg { color: var(--muted); flex-shrink: 0; }
+.menu-item:hover { background: var(--sunk); }
+.menu-item.danger, .menu-item.danger svg { color: var(--bad); }
 
 /* ---------- small screens ---------- */
 @media (max-width: 720px) {
@@ -252,25 +287,11 @@ details.settings-block:not([open]) { gap: 0; }
   .family-name { border-left: 0; padding-left: 0; font-size: 13px; max-width: 60vw; }
   .appbar-actions { gap: 6px; flex-shrink: 0; }
   .save-state { min-width: 0; }
-  .menu-btn {
-    display: inline-flex; padding: 8px; border-radius: 8px; color: var(--ink);
-    background: transparent; border: 1px solid transparent;
-  }
-  .menu-btn[aria-expanded="true"] { background: var(--sunk); }
-  .app-menu {
-    display: none; position: absolute; right: 12px; top: calc(100% + 4px); z-index: 30;
-    min-width: 220px; padding: 6px; flex-direction: column; align-items: stretch; gap: 0;
-    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
-    box-shadow: 0 12px 32px rgba(16, 24, 40, .16);
-  }
-  .app-menu.open { display: flex; }
-  .app-menu .link {
-    display: block; width: 100%; text-align: left; padding: 12px 12px; border-radius: 8px;
-    color: var(--ink); font-size: 15px; font-weight: 500;
-  }
-  .app-menu .link:hover { background: var(--sunk); text-decoration: none; }
-  .app-menu [data-act="signout"] { color: var(--bad); }
-  .menu-email { display: block; padding: 10px 12px 8px; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--line); margin-bottom: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .desktop-only { display: none !important; }
+  .mobile-only { display: inline-flex !important; }
+  .menu-btn { padding: 0 8px; border-color: transparent; color: var(--ink); }
+  .app-menu { right: -4px; min-width: 240px; }
+  .menu-item { padding: 12px; font-size: 15px; }
 
   .tabs { gap: 0; }
   .tab { flex: 1; padding: 12px 8px; }
