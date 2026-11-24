@@ -12,9 +12,12 @@
     .wl { max-width: 680px; margin: 0 auto; padding: 40px 16px 64px; display: grid; gap: 20px; }
     .wl-head { display: grid; gap: 10px; }
     .wl-head h1 { font-size: 28px; font-weight: 600; letter-spacing: -.02em; }
-    .add-form { display: grid; gap: 12px; }
-    .add-form .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
-    .add-form textarea { min-height: 64px; }
+    .add-form { display: grid; gap: 10px; padding: 14px 16px 16px; border-top: 1px solid var(--line); background: #fafaf8; }
+    .add-form .two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+    .add-form textarea { min-height: 56px; }
+    .add-form .actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .list-foot { padding: 8px 16px 12px; border-top: 1px solid var(--line); }
+    .list-person .you { font-weight: 400; color: var(--muted); font-size: 13px; margin-left: 6px; }
     .lists { display: grid; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
     .list-person { border-top: 1px solid var(--line); }
     .list-person:first-child { border-top: 0; }
@@ -41,26 +44,13 @@
 
     <div id="status"></div>
 
-    <section class="settings-block" id="addCard" hidden>
-      <h3>Add to your list</h3>
-      <form class="add-form" id="wishForm">
-        <label><span>Your name</span><select id="wishPerson" required></select></label>
-        <div class="two">
-          <label><span>Item</span><input id="wishName" type="text" maxlength="200" required></label>
-          <label><span>Link <span class="muted">(optional)</span></span><input id="wishLink" type="url" maxlength="2000" placeholder="https://"></label>
-        </div>
-        <label><span>Notes <span class="muted">(optional)</span></span><textarea id="wishNotes" maxlength="1000" placeholder="Size, color…"></textarea></label>
-        <div><button type="submit" class="primary">Add item</button></div>
-      </form>
-    </section>
-
     <section id="listCard" hidden>
       <div class="lists" id="wishList"></div>
     </section>
   </main>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
-  <script src="config.js?v=4"></script>
+  <script src="config.js?v=6"></script>
   <script>
   (function () {
     "use strict";
@@ -93,23 +83,31 @@
       $("eventTitle").textContent = data.family.name;
       document.title = data.family.name + " · Wish Lists";
       $("eventMeta").textContent = [data.family.occasion, data.family.budget && "Budget " + data.family.budget].filter(Boolean).join(" · ");
-      renderPeople();
       renderList();
-      $("addCard").hidden = false;
       $("listCard").hidden = false;
     }
 
-    function renderPeople() {
-      const select = $("wishPerson");
-      let saved = null; try { saved = localStorage.getItem(ME); } catch (e) {}
-      const current = select.value || params.get("me") || saved || "";
-      select.innerHTML = '<option value="">Select…</option>' +
-        data.members.map((m) => '<option value="' + esc(m.id) + '">' + esc(m.name) + "</option>").join("");
-      if (data.members.some((m) => m.id === current)) select.value = current;
+    let addingFor = null;
+    function myId() {
+      const fromLink = params.get("me");
+      if (fromLink) return fromLink;
+      try { return localStorage.getItem(ME); } catch (e) { return null; }
+    }
+
+    function addFormHtml(memberId, name) {
+      return '<form class="add-form" data-member="' + esc(memberId) + '">' +
+        '<div class="two">' +
+          '<label><span>Item</span><input name="title" maxlength="200" required></label>' +
+          '<label><span>Link <span class="muted">(optional)</span></span><input name="link" type="url" maxlength="2000" placeholder="https://"></label>' +
+        '</div>' +
+        '<label><span>Notes <span class="muted">(optional)</span></span><textarea name="notes" maxlength="1000" placeholder="Size, color…"></textarea></label>' +
+        '<div class="actions"><button type="button" class="ghost" data-act="cancel">Cancel</button>' +
+        '<button type="submit" class="primary">Add to ' + esc(name) + "'s list</button></div></form>";
     }
 
     function renderList() {
       const keys = getKeys();
+      const me = myId();
       const list = $("wishList");
       if (!data.members.length) { list.innerHTML = '<p class="none muted">No one added yet.</p>'; return; }
       list.innerHTML = data.members.map((m) => {
@@ -122,9 +120,15 @@
             (keys[item.id] ? '<button type="button" class="link danger remove" data-id="' + esc(item.id) + '">Delete</button>' : "") +
             "</li>";
         }).join("") + "</ul>" : '<p class="none muted">Nothing yet.</p>';
+        const foot = addingFor === m.id
+          ? addFormHtml(m.id, m.name)
+          : '<div class="list-foot"><button type="button" class="link" data-act="add" data-member="' + esc(m.id) + '">+ Add item</button></div>';
         return '<details class="list-person"' + (openIds.has(m.id) ? " open" : "") + ' data-member="' + esc(m.id) + '">' +
-          "<summary><span>" + esc(m.name) + '</span><span class="tag">' + items.length + "</span></summary>" + body + "</details>";
+          "<summary><span>" + esc(m.name) + (m.id === me ? '<span class="you">(you)</span>' : "") +
+          '</span><span class="tag">' + items.length + "</span></summary>" + body + foot + "</details>";
       }).join("");
+      const input = list.querySelector('.add-form input[name="title"]');
+      if (input) input.focus();
     }
 
     $("wishList").addEventListener("toggle", (e) => {
@@ -132,24 +136,32 @@
       if (d) { if (d.open) openIds.add(d.dataset.member); else openIds.delete(d.dataset.member); }
     }, true);
 
-    $("wishForm").addEventListener("submit", async (event) => {
+    $("wishList").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-act]");
+      if (!button) return;
+      if (button.dataset.act === "add") { addingFor = button.dataset.member; openIds.add(addingFor); renderList(); }
+      if (button.dataset.act === "cancel") { addingFor = null; renderList(); }
+    });
+
+    $("wishList").addEventListener("submit", async (event) => {
+      const form = event.target.closest(".add-form");
+      if (!form) return;
       event.preventDefault();
-      const member = $("wishPerson").value;
-      const title = $("wishName").value.trim();
-      if (!member || !title) return;
-      const button = event.target.querySelector("button[type=submit]");
+      const member = form.dataset.member;
+      const title = form.title.value.trim();
+      if (!title) return;
+      const button = form.querySelector("button[type=submit]");
       button.disabled = true;
       const { data: added, error } = await sb.rpc("wishlist_add", {
         p_token: token, p_member: member, p_title: title,
-        p_link: $("wishLink").value.trim(), p_notes: $("wishNotes").value.trim()
+        p_link: form.link.value.trim(), p_notes: form.notes.value.trim()
       });
       button.disabled = false;
       if (error) { status(/wishlist_items_link_check/.test(error.message) ? "Links must start with https://" : error.message, "bad"); return; }
       const keys = getKeys(); keys[added.id] = added.edit_key; setKeys(keys);
-      try { localStorage.setItem(ME, member); } catch (e) {}
-      openIds.add(member);
-      $("wishName").value = ""; $("wishLink").value = ""; $("wishNotes").value = "";
-      $("wishName").focus();
+      if (!params.get("me")) { try { localStorage.setItem(ME, member); } catch (e) {} }
+      addingFor = null;
+      status("");
       await load();
     });
 
