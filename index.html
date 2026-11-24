@@ -6,44 +6,76 @@
   <title>Secret Macabi</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
-  <link rel="icon" type="image/svg+xml" href="/SecretExchange/favicon.svg">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <main class="wrap">
+  <div id="globalMsg" class="toast" hidden></div>
+
+  <!-- ============ Login ============ -->
+  <div id="authView" class="admin-gate" hidden>
+    <div class="admin-card">
+      <h2>Secret Macabi</h2>
+      <p>Organizers sign in here. Looking for a wish list? Use the link from your family's email.</p>
+      <form id="authForm" class="admin-form">
+        <label><span>Email</span><input id="authEmail" type="email" autocomplete="email" required></label>
+        <label><span>Password</span><input id="authPassword" type="password" autocomplete="current-password" minlength="8" required></label>
+        <button type="submit" class="primary">Sign in</button>
+        <div class="row">
+          <button type="button" id="signUpBtn" class="ghost">Create account</button>
+          <button type="button" id="forgotBtn" class="ghost">Forgot password</button>
+        </div>
+      </form>
+      <p id="authMsg" class="hint" role="status"></p>
+    </div>
+  </div>
+
+  <!-- ============ Pick a family ============ -->
+  <div id="familyView" class="admin-gate" hidden>
+    <div class="admin-card">
+      <h2>Your families</h2>
+      <p id="whoAmI" class="hint"></p>
+      <div id="familyList" class="family-list"></div>
+      <form id="newFamilyForm" class="admin-form">
+        <label><span>Start a new family exchange</span><input id="newFamilyName" placeholder="The Garber Family" maxlength="100" required></label>
+        <button type="submit">Create family</button>
+      </form>
+      <p class="hint">Someone else's family? Ask its owner to add your email as an admin, then refresh.</p>
+      <button type="button" class="ghost" data-act="signout">Sign out</button>
+    </div>
+  </div>
+
+  <!-- ============ Admin app ============ -->
+  <main id="appView" class="wrap" hidden>
     <header class="topbar">
       <div class="brand">
         <div class="candles" aria-hidden="true">
           <i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i>
           <i class="lit shamash"></i><i></i><i></i><i></i><i></i>
         </div>
-        <h1 id="titleOut">Secret Macabi Admin</h1>
+        <h1 id="familyTitle">Secret Macabi</h1>
       </div>
       <nav class="topnav" aria-label="Main navigation">
-        <a href="index.html" class="active">Draw</a>
-        <a href="wishlist.html">Wish list</a>
+        <a id="wishlistNav" href="wishlist.html" target="_blank" rel="noopener">Wish list ↗</a>
+        <a href="#" id="switchFamily">Switch family</a>
+        <a href="#" data-act="signout">Sign out</a>
       </nav>
     </header>
 
-    <p class="lede">
-      Add everyone, draw names so nobody gets themselves or last year's match, then send each person their secret assignment.
-    </p>
+    <p class="lede">Add everyone, draw names so nobody gets themselves or a recent match, then email each person their secret assignment.</p>
 
     <section class="step" aria-labelledby="s1">
       <div class="step-head">
-        <div>
-          <div class="num">Step 1</div>
-          <h2 id="s1">Party details</h2>
-        </div>
+        <div><div class="num">Step 1</div><h2 id="s1">Party details</h2></div>
+        <span class="hint" id="settingsMsg" role="status"></span>
       </div>
-
       <div class="grid-2">
-        <label><span>Name of the exchange</span><input id="set-title"></label>
-        <label><span>Gift budget</span><input id="set-budget"></label>
-        <label><span>What it's for</span><input id="set-occasion"></label>
-        <label><span>Sign the email as</span><input id="set-signoff"></label>
-        <label class="wide"><span>Wishlist URL</span><input id="set-wishlistUrl" placeholder="https://your-site/wishlist.html"></label>
-        <label class="wide"><span>Email subject ({name} becomes each person's name)</span><input id="set-subject"></label>
+        <label><span>Family / exchange name</span><input data-setting="name" maxlength="100"></label>
+        <label><span>Gift budget</span><input data-setting="budget" maxlength="50"></label>
+        <label><span>What it's for</span><input data-setting="occasion" maxlength="100"></label>
+        <label><span>Sign the email as</span><input data-setting="signoff" maxlength="100"></label>
+        <label class="wide"><span>Email subject ({name} becomes each person's name)</span><input data-setting="email_subject" maxlength="200"></label>
+        <label><span>Avoid repeats from the last … draws</span><input data-setting="avoid_recent_draws" type="number" min="0" max="10"></label>
       </div>
     </section>
 
@@ -52,29 +84,25 @@
         <div><div class="num">Step 2</div><h2 id="s2">Who's in</h2></div>
         <span class="counts" id="counts"></span>
       </div>
+      <p class="hint">Kids draw from kids and adults from adults. "Never pair with" and "Past matches" are names this person can't get (separate with commas). Untick "In" to sit someone out this year without losing their history. Changes save automatically.</p>
 
-      <div class="banner gold" id="exampleBanner" hidden>
-        <span>These are example names. Replace them with your family.</span>
-        <button id="clearExamples" class="ghost">Clear examples</button>
-      </div>
+      <form id="addPersonForm" class="add-person">
+        <label><span>Name</span><input id="newName" maxlength="100" required></label>
+        <label><span>Email</span><input id="newEmail" type="email" placeholder="Parent's email for kids"></label>
+        <label><span>Group</span><select id="newGroup"><option>Adults</option><option>Kids</option></select></label>
+        <button type="submit" class="primary">Add person</button>
+      </form>
 
-      <p class="hint">Kids draw from kids and adults draw from adults. "Last year's match" and "Never pair with" are names this person can't get. Separate several names with commas.</p>
       <div class="people" id="people"></div>
-      <div class="row">
-        <button id="addAdult">Add adult</button>
-        <button id="addKid">Add kid</button>
-      </div>
 
       <details>
-        <summary>Load previous draw history</summary>
+        <summary>Import people or past draws from a file</summary>
         <div class="body">
-          <p class="hint">Paste old results, one per line, like <code>Dina Leah Garber -Rivka</code>. You can add multiple years or upload a .txt file of past draws.</p>
-          <label><span>Previous draw results</span><textarea id="lastYearText" placeholder="Dina Leah Garber -Rivka&#10;Moshe Garber -Shira&#10;..."></textarea></label>
-          <label><span>Upload previous-year text files</span><input id="pastYearFile" type="file" accept=".txt,.csv,text/plain" multiple></label>
-          <div class="row">
-            <button id="applyLastYear">Use these previous matches</button>
-            <span class="hint" id="lastYearMsg"></span>
-          </div>
+          <label><span>People file (lines like <code>Adults,Dina,dina@example.com</code>)</span><input id="peopleFile" type="file" accept=".txt,.csv,text/plain"></label>
+          <p class="hint">Past results go one per line, like <code>Dina Leah Garber -Rivka</code>. They're added to that person's "Past matches".</p>
+          <label><span>Previous draw results</span><textarea id="historyText" placeholder="Dina Leah Garber -Rivka&#10;Moshe Garber -Shira"></textarea></label>
+          <label><span>…or upload past-year text files</span><input id="historyFile" type="file" accept=".txt,.csv,text/plain" multiple></label>
+          <div class="row"><button id="applyHistory" type="button">Add these past matches</button><span class="hint" id="historyMsg"></span></div>
         </div>
       </details>
     </section>
@@ -86,18 +114,36 @@
       </div>
       <div id="drawMsg"></div>
       <div class="results" id="results"></div>
-      <div id="fallbackWrap" hidden>
-        <p class="hint">Your browser blocked copying. The text is selected below; press Ctrl+C or ⌘C.</p>
-        <textarea id="fallback" readonly></textarea>
-      </div>
     </section>
 
-    <footer>
-      Matches stay hidden until you click Show, so you can run the draw without seeing who got whom. Everything is saved in this browser only.
-    </footer>
+    <section class="step" aria-labelledby="s4">
+      <div class="step-head">
+        <div><div class="num">Step 4</div><h2 id="s4">Sharing &amp; admins</h2></div>
+      </div>
+      <label><span>Family wish-list link (anyone with it can view and add to the lists)</span>
+        <input id="shareLink" readonly></label>
+      <div class="row">
+        <button id="copyShare" type="button">Copy link</button>
+        <button id="regenShare" type="button" class="ghost">Make a new link (old one stops working)</button>
+        <button id="testEmail" type="button" class="ghost">Send me a test email</button>
+      </div>
+      <div>
+        <div class="group-title"><span>Admins</span><span id="adminCount"></span></div>
+        <div id="adminList" class="admin-list"></div>
+      </div>
+      <form id="addAdminForm" class="row" hidden>
+        <label class="grow"><span>Add an admin by email (they must create an account first)</span><input id="adminEmail" type="email" required></label>
+        <label><span>Role</span><select id="adminRole"><option value="admin">Admin</option><option value="owner">Owner</option></select></label>
+        <button type="submit">Add admin</button>
+      </form>
+      <p class="hint">Admins can manage people, draw, and send. Owners can also add or remove admins.</p>
+    </section>
+
+    <footer>Matches stay hidden until you click Show, so you can run the draw without seeing who got whom.</footer>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
   <script src="config.js"></script>
-  <script src="site.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

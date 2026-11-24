@@ -97,201 +97,139 @@
           <i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i>
           <i class="lit shamash"></i><i></i><i></i><i></i><i></i>
         </div>
-        <h1 id="eventTitle">Secret Macabi Wish List</h1>
+        <h1 id="eventTitle">Wish List</h1>
       </div>
-      <nav class="topnav" aria-label="Main navigation">
-        <a href="index.html">Back</a>
-      </nav>
     </header>
 
-    <div class="wishlist-card">
-      <p id="intro" class="lede">Add a few thoughtful ideas or shopping links for the exchange.</p>
+    <div id="status"></div>
 
+    <div class="wishlist-card" id="addCard" hidden>
+      <p id="intro" class="lede"></p>
       <form class="wish-form" id="wishForm">
-        <label><span>Person's name</span><input id="wishPerson" type="text" placeholder="Dina" required></label>
-        <label><span>Item</span><input id="wishName" type="text" placeholder="A nice holiday gift" required></label>
-        <label><span>Link (optional)</span><input id="wishLink" type="url" placeholder="https://..."></label>
-        <label><span>Notes (optional)</span><textarea id="wishNotes" placeholder="Size, color, budget, etc."></textarea></label>
-        <div class="row">
-          <button type="submit" class="primary">Add item</button>
-          <button id="clearList" type="button" class="ghost">Clear this person's list</button>
-        </div>
+        <label><span>Who are you?</span><select id="wishPerson" required></select></label>
+        <label><span>Item</span><input id="wishName" type="text" maxlength="200" placeholder="A nice holiday gift" required></label>
+        <label><span>Link (optional)</span><input id="wishLink" type="url" maxlength="2000" placeholder="https://..."></label>
+        <label><span>Notes (optional)</span><textarea id="wishNotes" maxlength="1000" placeholder="Size, color, etc."></textarea></label>
+        <div class="row"><button type="submit" class="primary">Add to my list</button></div>
       </form>
     </div>
 
-    <section class="wishlist-card">
-      <h2>Wishlist</h2>
+    <section class="wishlist-card" id="listCard" hidden>
+      <h2>Everyone's lists</h2>
       <ul id="wishList" class="wish-list"></ul>
     </section>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
   <script>
-    const STORAGE_KEY = "secret-macabi-wishlist-items";
+  (function () {
+    "use strict";
+    const cfg = window.SECRET_MACABI_CONFIG || {};
+    const $ = (id) => document.getElementById(id);
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("f");
+    const KEYS = "secret-macabi-wish-keys";
+    const ME = "secret-macabi-me-" + token;
 
-    function itemId() {
-      return (Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 10));
+    const esc = (v) => String(v == null ? "" : v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const safeLink = (v) => /^https?:\/\//i.test(v || "") ? v : "";
+    function getKeys() { try { return JSON.parse(localStorage.getItem(KEYS)) || {}; } catch (e) { return {}; } }
+    function setKeys(k) { try { localStorage.setItem(KEYS, JSON.stringify(k)); } catch (e) {} }
+    function status(html, kind) { $("status").innerHTML = html ? '<div class="banner ' + (kind || "gold") + '"><span>' + html + "</span></div>" : ""; }
+
+    if (!token || !/^[0-9a-f-]{36}$/i.test(token)) {
+      status("This page needs your family's wish-list link. Ask your organizer for it, or use the link in your Secret Macabi email.");
+      return;
+    }
+    if (!window.supabase || /YOUR-/.test(cfg.supabaseUrl + cfg.supabaseAnonKey)) { status("The site isn't connected to its database yet.", "bad"); return; }
+
+    const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, { auth: { persistSession: false } });
+    let data = null;
+    const openIds = new Set([params.get("open"), params.get("me")].filter(Boolean));
+
+    async function load() {
+      const { data: result, error } = await sb.rpc("wishlist_get", { p_token: token });
+      if (error) { status(esc(error.message), "bad"); return; }
+      if (!result) { status("This wish-list link is no longer valid. Ask your organizer for the current one.", "bad"); return; }
+      data = result;
+      status("");
+      $("eventTitle").textContent = data.family.name + " Wish List";
+      document.title = data.family.name + " Wish List";
+      $("intro").textContent = "Add a few ideas for your " + (data.family.occasion || "gift exchange") +
+        (data.family.budget ? " (budget " + data.family.budget + ")" : "") + ".";
+      renderPeople();
+      renderList();
+      $("addCard").hidden = false;
+      $("listCard").hidden = false;
     }
 
-    function loadItems() {
-      try {
-        const items = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-        return items.map((item) => ({ ...item, id: item.id || itemId() }));
-      } catch (e) {
-        return [];
-      }
-    }
-
-    function saveItems(items) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-    }
-
-    function normalizeName(name) {
-      return String(name || "").trim().replace(/\s+/g, " ");
-    }
-
-    function escapeHtml(value) {
-      return String(value || "").replace(/[&<>"']/g, (char) => {
-        return {
-          "&": "&amp;",
-          "<": "&lt;",
-          ">": "&gt;",
-          '"': "&quot;",
-          "'": "&#39;"
-        }[char];
-      });
-    }
-
-    function titleFromQuery() {
-      const params = new URLSearchParams(window.location.search);
-      const eventName = params.get("event");
-      return eventName ? eventName + " Wish List" : "Secret Macabi Wish List";
-    }
-
-    function personFromQuery() {
-      const params = new URLSearchParams(window.location.search);
-      return normalizeName(params.get("person") || "");
-    }
-
-    function groupedItems() {
-      const items = loadItems();
-      const groups = {};
-      items.forEach((item) => {
-        const person = normalizeName(item.person || "");
-        if (!person) return;
-        if (!groups[person]) groups[person] = [];
-        groups[person].push(item);
-      });
-      return Object.keys(groups).sort().map((person) => ({ person, items: groups[person] }));
+    function renderPeople() {
+      const select = $("wishPerson");
+      const current = select.value || params.get("me") || (function () { try { return localStorage.getItem(ME); } catch (e) { return null; } })() || "";
+      select.innerHTML = '<option value="">Choose your name…</option>' +
+        data.members.map((m) => '<option value="' + esc(m.id) + '">' + esc(m.name) + "</option>").join("");
+      if (data.members.some((m) => m.id === current)) select.value = current;
     }
 
     function renderList() {
-      const list = document.getElementById("wishList");
-      const groups = groupedItems();
-      const selectedPerson = normalizeName(document.getElementById("wishPerson").value || personFromQuery());
-      list.innerHTML = "";
-
-      if (!groups.length) {
-        const emptyLabel = selectedPerson ? selectedPerson + " has not added anything yet." : "No wishlist items yet.";
-        list.innerHTML = '<li class="wish-item"><strong>No wishlist items yet.</strong><div class="meta">' + escapeHtml(emptyLabel) + '</div></li>';
-        return;
-      }
-
-      groups.forEach(({ person, items }) => {
-        const details = document.createElement("details");
-        details.className = "wish-person-group";
-        details.open = selectedPerson ? normalizeName(person) === selectedPerson : false;
-
-        const summary = document.createElement("summary");
-        summary.innerHTML = '<span>' + escapeHtml(person) + '</span><span class="person-count">' + items.length + ' item' + (items.length === 1 ? '' : 's') + '</span>';
-
-        const ul = document.createElement("ul");
-        ul.className = "wish-person-items";
-
-        items.forEach((item) => {
-          const li = document.createElement("li");
-          li.className = "wish-item";
-
-          const title = item.link
-            ? '<a href="' + escapeHtml(item.link) + '" target="_blank" rel="noopener">' + escapeHtml(item.name) + '</a>'
-            : '<strong>' + escapeHtml(item.name) + '</strong>';
-
-          const noteHtml = item.notes ? '<div class="meta">' + escapeHtml(item.notes) + '</div>' : "";
-          const linkHtml = item.link ? '<div class="meta"><a href="' + escapeHtml(item.link) + '" target="_blank" rel="noopener">Open link</a></div>' : "";
-
-          li.innerHTML = `
-            ${title}
-            ${noteHtml}
-            ${linkHtml}
-            <div class="wish-actions">
-              <button type="button" class="remove" data-id="${escapeHtml(item.id || itemId())}">Delete</button>
-            </div>
-          `;
-
-          ul.appendChild(li);
-        });
-
-        details.appendChild(summary);
-        details.appendChild(ul);
-        list.appendChild(details);
-      });
+      const keys = getKeys();
+      const list = $("wishList");
+      if (!data.members.length) { list.innerHTML = '<li class="wish-item">Nobody has been added to this family yet.</li>'; return; }
+      list.innerHTML = data.members.map((m) => {
+        const items = data.items.filter((i) => i.member_id === m.id);
+        const body = items.length ? items.map((item) => {
+          const link = safeLink(item.link);
+          return '<li class="wish-item">' +
+            (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + esc(item.title) + " ↗</a>" : "<strong>" + esc(item.title) + "</strong>") +
+            (item.notes ? '<div class="meta">' + esc(item.notes) + "</div>" : "") +
+            (keys[item.id] ? '<div class="wish-actions"><button type="button" class="remove" data-id="' + esc(item.id) + '">Delete</button></div>' : "") +
+            "</li>";
+        }).join("") : '<li class="meta">No items yet.</li>';
+        return '<details class="wish-person-group"' + (openIds.has(m.id) ? " open" : "") + ' data-member="' + esc(m.id) + '">' +
+          "<summary><span>" + esc(m.name) + '</span><span class="person-count">' + items.length + " item" + (items.length === 1 ? "" : "s") + "</span></summary>" +
+          '<ul class="wish-person-items">' + body + "</ul></details>";
+      }).join("");
     }
 
-    const queryPerson = personFromQuery();
-    const personInput = document.getElementById("wishPerson");
-    if (queryPerson) {
-      personInput.value = queryPerson;
-    }
+    $("wishList").addEventListener("toggle", (e) => {
+      const d = e.target.closest && e.target.closest("details");
+      if (d) { if (d.open) openIds.add(d.dataset.member); else openIds.delete(d.dataset.member); }
+    }, true);
 
-    document.getElementById("eventTitle").textContent = titleFromQuery();
-    document.getElementById("intro").textContent = "Pick a few thoughtful options or add a link to a gift you would love to receive.";
-
-    personInput.addEventListener("input", () => {
-      renderList();
-    });
-
-    document.getElementById("wishForm").addEventListener("submit", (event) => {
+    $("wishForm").addEventListener("submit", async (event) => {
       event.preventDefault();
-
-      const person = normalizeName(personInput.value || personFromQuery());
-      const name = document.getElementById("wishName").value.trim();
-      const link = document.getElementById("wishLink").value.trim();
-      const notes = document.getElementById("wishNotes").value.trim();
-
-      if (!person || !name) return;
-
-      const items = loadItems();
-      items.push({ id: itemId(), person, name, link, notes });
-      saveItems(items);
-      renderList();
-
-      event.target.reset();
-      personInput.value = person;
-      document.getElementById("wishName").focus();
+      const member = $("wishPerson").value;
+      const title = $("wishName").value.trim();
+      if (!member || !title) return;
+      const button = event.target.querySelector("button[type=submit]");
+      button.disabled = true;
+      const { data: added, error } = await sb.rpc("wishlist_add", {
+        p_token: token, p_member: member, p_title: title,
+        p_link: $("wishLink").value.trim(), p_notes: $("wishNotes").value.trim()
+      });
+      button.disabled = false;
+      if (error) { status(esc(/wishlist_items_link_check/.test(error.message) ? "Links must start with http:// or https://" : error.message), "bad"); return; }
+      const keys = getKeys(); keys[added.id] = added.edit_key; setKeys(keys);
+      try { localStorage.setItem(ME, member); } catch (e) {}
+      openIds.add(member);
+      $("wishName").value = ""; $("wishLink").value = ""; $("wishNotes").value = "";
+      $("wishName").focus();
+      await load();
     });
 
-    document.getElementById("wishList").addEventListener("click", (event) => {
-      const btn = event.target.closest(".remove");
-      if (!btn) return;
-
-      const id = btn.dataset.id;
-      const allItems = loadItems();
-      const updated = allItems.filter((item) => item.id !== id);
-      saveItems(updated);
-      renderList();
+    $("wishList").addEventListener("click", async (event) => {
+      const button = event.target.closest(".remove");
+      if (!button || !confirm("Delete this item?")) return;
+      const keys = getKeys();
+      const { error } = await sb.rpc("wishlist_delete", { p_token: token, p_item: button.dataset.id, p_edit_key: keys[button.dataset.id] });
+      if (error) { status(esc(error.message), "bad"); return; }
+      delete keys[button.dataset.id]; setKeys(keys);
+      await load();
     });
 
-    document.getElementById("clearList").addEventListener("click", () => {
-      const currentPerson = normalizeName(personInput.value || personFromQuery());
-      if (!currentPerson) return;
-
-      if (confirm("Clear this person's wishlist?")) {
-        const items = loadItems().filter((item) => normalizeName(item.person) !== currentPerson);
-        saveItems(items);
-        renderList();
-      }
-    });
-
-    renderList();
+    load();
+  })();
   </script>
 </body>
 </html>

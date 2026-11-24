@@ -1,1 +1,8 @@
 .DS_Store
+.env
+.idea/
+admin.jwt
+admin.key
+local.env
+node_modules/
+people.txt
