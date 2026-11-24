@@ -430,10 +430,21 @@
   function renderPastPairs() {
     $("removeAllPast").hidden = !pastPairs.length;
     $("pastCount").textContent = pastPairs.length ? pastPairs.length : "";
-    $("pastList").innerHTML = pastPairs.length
-      ? pastPairs.map((p) => `<div class="past-row"><span>${esc(p.giver)} <span class="arrow">→</span> ${esc(p.receiver)}</span>` +
-          `<button type="button" class="link danger" data-pair="${esc(p.id)}" aria-label="Remove">Remove</button></div>`).join("")
-      : '<p class="muted">None saved yet.</p>';
+    if (!pastPairs.length) { $("pastList").innerHTML = '<p class="muted">None saved yet.</p>'; return; }
+    // Group by giver so each person's history sits on one line.
+    const groups = new Map();
+    pastPairs.forEach((p) => {
+      const k = norm(p.giver);
+      if (!groups.has(k)) groups.set(k, { name: p.giver, pairs: [] });
+      groups.get(k).pairs.push(p);
+    });
+    $("pastList").innerHTML = Array.from(groups.values()).map((g) =>
+      `<div class="past-row">
+        <span class="past-giver">${esc(g.name)}</span>
+        <span class="past-receivers"><span class="arrow">→</span>${g.pairs.map((p) =>
+          `<span class="chip">${esc(p.receiver)}<button type="button" data-pair="${esc(p.id)}" aria-label="Remove ${esc(p.receiver)}">×</button></span>`).join("")}</span>
+        ${g.pairs.length > 1 ? `<button type="button" class="link danger" data-giver="${esc(g.name)}">Remove all</button>` : "<span></span>"}
+      </div>`).join("");
   }
 
   async function applyHistory() {
@@ -475,11 +486,17 @@
   }
 
   async function removePastPair(event) {
-    const button = event.target.closest("[data-pair]");
-    if (!button) return;
+    const one = event.target.closest("[data-pair]");
+    const all = event.target.closest("[data-giver]");
+    let ids;
+    if (one) ids = [one.dataset.pair];
+    else if (all) {
+      ids = pastPairs.filter((p) => norm(p.giver) === norm(all.dataset.giver)).map((p) => p.id);
+      if (!window.confirm(`Remove all ${ids.length} past draws for ${all.dataset.giver}?`)) return;
+    } else return;
     try {
-      await persist(() => sb.from("past_pairs").delete().eq("id", button.dataset.pair));
-      pastPairs = pastPairs.filter((p) => p.id !== button.dataset.pair);
+      await persist(() => sb.from("past_pairs").delete().in("id", ids));
+      pastPairs = pastPairs.filter((p) => !ids.includes(p.id));
       renderPastPairs();
       invalidatePreview();
     } catch (e) {}

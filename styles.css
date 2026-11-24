@@ -256,6 +256,12 @@ details.settings-block:not([open]) { gap: 0; }
 /* ---------- past draws ---------- */
 .past-list { display: grid; max-height: 320px; overflow-y: auto; border-top: 1px solid var(--line); }
 .past-list .muted { padding-top: 10px; }
-.past-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
-.past-row .arrow { color: var(--accent); margin: 0 4px; }
+.past-row { display: grid; grid-template-columns: 160px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.past-giver { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.past-receivers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.past-receivers .arrow { color: var(--accent); margin-right: 2px; }
+.chip { display: inline-flex; align-items: center; gap: 2px; padding: 2px 4px 2px 10px; border-radius: 999px; background: var(--sunk); font-size: 13px; }
+.chip button { border: 0; background: none; padding: 0 6px; font-size: 15px; line-height: 1; color: var(--muted); border-radius: 999px; }
+.chip button:hover { color: var(--bad); background: none; }
+@media (max-width: 720px) { .past-row { grid-template-columns: minmax(0, 1fr) auto; } .past-receivers { grid-column: 1 / -1; grid-row: 2; } }
 .push-right { margin-left: auto; }
