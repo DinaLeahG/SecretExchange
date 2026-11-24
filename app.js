@@ -239,6 +239,8 @@
     renderPeople();
   }
 
+  const byName = (a, b) => String(a || "").localeCompare(String(b || ""), undefined, { sensitivity: "base", numeric: true });
+
   function memberById(id) { return members.find((m) => m.id === id); }
 
   function renderPeople() {
@@ -246,7 +248,7 @@
     if (!members.length) {
       box.innerHTML = '<div class="empty">No one added yet.</div>';
     } else {
-      box.innerHTML = members.map((p) => {
+      box.innerHTML = members.slice().sort((a, b) => byName(a.name, b.name)).map((p) => {
         const open = expanded.has(p.id);
         const tags = [
           !p.active ? "Sitting out" : "",
@@ -324,7 +326,7 @@
     try {
       await persist(() => sb.from("members").update(patch).eq("id", person.id));
       Object.assign(person, patch);
-      if (["group_name", "active", "exclusions", "past_matches"].includes(field)) renderPeople();
+      if (["name", "group_name", "active", "exclusions", "past_matches"].includes(field)) renderPeople();
       if (field === "name") renderDraw();
       invalidatePreview();
     } catch (e) { renderPeople(); }
@@ -706,7 +708,8 @@
   function resultsText(rows) {
     let out = family.name + "\n";
     ["Adults", "Kids"].forEach((group) => {
-      const g = rows.filter((r) => (memberById(r.giver_id) || {}).group_name === group);
+      const g = rows.filter((r) => (memberById(r.giver_id) || {}).group_name === group)
+        .sort((a, b) => byName(nameOf(a.giver_id), nameOf(b.giver_id)));
       if (!g.length) return;
       out += "\n" + group.toUpperCase() + "\n";
       g.forEach((r) => { out += nameOf(r.giver_id) + " - " + nameOf(r.receiver_id) + "\n"; });
@@ -740,7 +743,8 @@
     const box = $("results");
     if (!rows.length) { box.innerHTML = '<div class="empty">No draw yet.</div>'; return; }
     box.innerHTML = ["Adults", "Kids"].map((group) => {
-      const g = rows.filter((r) => (memberById(r.giver_id) || {}).group_name === group);
+      const g = rows.filter((r) => (memberById(r.giver_id) || {}).group_name === group)
+        .sort((a, b) => byName(nameOf(a.giver_id), nameOf(b.giver_id)));
       if (!g.length) return "";
       return `<div class="result-group">
         <div class="group-title">${group}</div>
