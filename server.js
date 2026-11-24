@@ -86,7 +86,6 @@ async function callMailer(payload) {
 }
 
 function buildEmail(family, giver, receiver, wishlistUrl) {
-  const giftIconUrl = new URL('gift-icon.png', SITE_URL).toString();
   const subject = (family.email_subject || 'Your Secret Macabi match is here!').split('{name}').join(giver.name);
   const forWhat = family.occasion ? ` for the ${family.occasion}` : '';
   const budgetLine = family.budget ? `The gift budget is ${family.budget}.` : '';
@@ -95,7 +94,7 @@ function buildEmail(family, giver, receiver, wishlistUrl) {
     '',
     `You have been assigned ${receiver.name}${forWhat}. ${budgetLine}`.trim(),
     '',
-    `Check ${receiver.name}'s wishlist: ${wishlistUrl}`,
+    `🎁 Check ${receiver.name}'s wishlist: ${wishlistUrl}`,
     '',
     'Enjoy!',
     family.signoff || ''
@@ -105,14 +104,9 @@ function buildEmail(family, giver, receiver, wishlistUrl) {
       <p>Hi ${escapeHtml(giver.name)},</p>
       <p>You have been assigned <strong style="font-size:18px">${escapeHtml(receiver.name)}</strong>${escapeHtml(forWhat)}.
          ${budgetLine ? `<br>The gift budget is <strong>${escapeHtml(family.budget)}</strong>.` : ''}</p>
-      <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0">
-        <tr><td style="background:#2446c7;border-radius:8px">
-          <a href="${escapeHtml(wishlistUrl)}" style="display:inline-block;padding:12px 20px;font-family:Arial,Helvetica,sans-serif;font-size:15px;font-weight:bold;color:#ffffff;text-decoration:none">
-            <img src="${escapeHtml(giftIconUrl)}" width="20" height="20" alt="" style="vertical-align:middle;border:0;margin-right:10px">
-            <span style="vertical-align:middle">Check ${escapeHtml(receiver.name)}'s wishlist</span>
-          </a>
-        </td></tr>
-      </table>
+      <p style="margin:20px 0;font-size:16px">
+        🎁 <a href="${escapeHtml(wishlistUrl)}" style="color:#2446c7;font-weight:bold;text-decoration:underline">Check ${escapeHtml(receiver.name)}'s wishlist</a>
+      </p>
       <p>Enjoy!${family.signoff ? `<br>${escapeHtml(family.signoff)}` : ''}</p>
     </div>`;
   return { subject, body, html };
