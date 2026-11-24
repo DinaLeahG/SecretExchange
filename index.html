@@ -137,9 +137,10 @@
 
         <div class="settings-block">
           <h3>Wish list link</h3>
-          <div class="inline-form">
-            <input id="shareLink" readonly aria-label="Wish list link">
-            <button id="copyShare" type="button">Copy</button>
+          <p class="muted">Share this with the family so everyone can add ideas. It's also in every email.</p>
+          <div class="row">
+            <button id="copyShare" type="button" class="primary">Copy link</button>
+            <a id="openShare" class="file-btn" href="wishlist.html" target="_blank" rel="noopener">Open ↗</a>
           </div>
           <div class="row">
             <button id="testEmail" type="button" class="link">Send test email</button>
@@ -175,6 +176,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
   <script src="config.js?v=4"></script>
-  <script src="app.js?v=13"></script>
+  <script src="app.js?v=14"></script>
 </body>
 </html>

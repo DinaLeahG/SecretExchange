@@ -783,7 +783,7 @@
     return url.toString();
   }
   function renderShare() {
-    $("shareLink").value = shareUrl();
+    $("openShare").href = shareUrl();
     $("wishlistNav").href = shareUrl();
   }
 
@@ -869,7 +869,7 @@
   $("drawControls").addEventListener("click", onDrawControl);
   $("results").addEventListener("click", onResultClick);
   $("copyShare").addEventListener("click", () => {
-    navigator.clipboard.writeText(shareUrl()).then(() => toast("Link copied."), () => { $("shareLink").select(); });
+    navigator.clipboard.writeText(shareUrl()).then(() => toast("Link copied."), () => window.prompt("Copy this link:", shareUrl()));
   });
   $("regenShare").addEventListener("click", regenerateShare);
   $("testEmail").addEventListener("click", testEmail);
