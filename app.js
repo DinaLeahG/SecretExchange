@@ -444,7 +444,6 @@
         <span class="past-giver">${esc(g.name)}</span>
         <span class="past-receivers"><span class="arrow">→</span>${g.pairs.map((p) =>
           `<span class="chip">${esc(p.receiver)}<button type="button" data-pair="${esc(p.id)}" aria-label="Remove ${esc(p.receiver)}">×</button></span>`).join("")}</span>
-        ${g.pairs.length > 1 ? `<button type="button" class="link danger" data-giver="${esc(g.name)}">Remove all</button>` : "<span></span>"}
       </div>`).join("");
   }
 
