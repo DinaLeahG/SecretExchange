@@ -32,7 +32,7 @@ GitHub Pages (index.html, wishlist.html)
    - keep it on and set **Authentication → Emails → SMTP Settings** to Gmail:
      host `smtp.gmail.com`, port `465`, user = your Gmail, password = your Gmail App Password.
      (This also makes "Forgot password" work.)
-3. **Authentication → URL Configuration**: Site URL = `https://dinaleahg.github.io/SecretExchange/`.
+3. **Authentication → URL Configuration**: Site URL = `https://YOUR-USERNAME.github.io/YOUR-REPO/`.
 4. **Project Settings → API**: copy the **Project URL** and the **anon public** key (or the newer **publishable** key `sb_publishable_…`; either works).
    Never copy the `service_role` key anywhere; this project doesn't need it.
 
@@ -58,8 +58,8 @@ Service → **Environment** → set:
 | `SUPABASE_ANON_KEY` | anon public key from step 1.4 |
 | `APPS_SCRIPT_URL` | Web app URL from step 2.5 |
 | `APPS_SCRIPT_SECRET` | same secret as step 2.3 |
-| `SITE_URL` | `https://dinaleahg.github.io/SecretExchange/` |
-| `ALLOWED_ORIGINS` | `https://dinaleahg.github.io` |
+| `SITE_URL` | `https://YOUR-USERNAME.github.io/YOUR-REPO/` |
+| `ALLOWED_ORIGINS` | `https://YOUR-USERNAME.github.io` |
 
 Delete the old `RESEND_API_KEY`, `FROM_EMAIL`, `GMAIL_*` variables. Build command `npm install`, start command `npm start`.
 Check `https://secretexchange.onrender.com/api/health` shows `"configured": true`.

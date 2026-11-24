@@ -10,14 +10,14 @@ const SUPABASE_URL = env('SUPABASE_URL');
 const SUPABASE_ANON_KEY = env('SUPABASE_ANON_KEY');
 const APPS_SCRIPT_URL = env('APPS_SCRIPT_URL');
 const APPS_SCRIPT_SECRET = env('APPS_SCRIPT_SECRET');
-const SITE_URL = env('SITE_URL', 'https://dinaleahg.github.io/SecretExchange/');
-const ALLOWED_ORIGINS = env('ALLOWED_ORIGINS', 'https://dinaleahg.github.io');
+const SITE_URL = env('SITE_URL');
+const ALLOWED_ORIGINS = env('ALLOWED_ORIGINS') || (SITE_URL ? new URL(SITE_URL).origin : '');
 const PORT = env('PORT', '10000');
 const APPS_SCRIPT_URL_OK = /^https:\/\/script\.google\.com\/macros\/s\/[\w-]+\/exec$/.test(APPS_SCRIPT_URL);
 // Safe-to-show fingerprint of the URL (not secret) so setup problems can be spotted from /api/health.
 const appsScriptHint = APPS_SCRIPT_URL ? APPS_SCRIPT_URL.slice(0, 40) + '…' + APPS_SCRIPT_URL.slice(-12) : '(missing)';
 
-const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'APPS_SCRIPT_URL', 'APPS_SCRIPT_SECRET']
+const missing = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'APPS_SCRIPT_URL', 'APPS_SCRIPT_SECRET', 'SITE_URL']
   .filter((key) => !env(key));
 if (missing.length) console.warn('⚠️  Missing environment variables:', missing.join(', '));
 

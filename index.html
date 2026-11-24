@@ -7,143 +7,154 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&display=swap">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="stylesheet" href="styles.css?v=3">
+  <link rel="stylesheet" href="styles.css?v=4">
 </head>
 <body>
-  <div id="globalMsg" class="toast" hidden></div>
+  <div id="globalMsg" class="toast" role="status" hidden></div>
 
-  <!-- ============ Login ============ -->
-  <div id="authView" class="admin-gate" hidden>
-    <div class="admin-card">
-      <h2>Secret Macabi</h2>
-      <p>Organizers sign in here. <strong>First time?</strong> Type your email and a new password (8+ characters), then press <strong>Create account</strong>. Looking for a wish list? Use the link from your family's email.</p>
-      <form id="authForm" class="admin-form">
+  <!-- Sign in -->
+  <div id="authView" class="center-view" hidden>
+    <div class="card narrow">
+      <div class="brand-mark">Secret Macabi</div>
+      <h1 class="card-title">Sign in</h1>
+      <form id="authForm" class="stack">
         <label><span>Email</span><input id="authEmail" type="email" autocomplete="email" required></label>
         <label><span>Password</span><input id="authPassword" type="password" autocomplete="current-password" minlength="8" required></label>
-        <button type="submit" class="primary">Sign in</button>
-        <div class="row">
-          <button type="button" id="signUpBtn" class="ghost">Create account</button>
-          <button type="button" id="forgotBtn" class="ghost">Forgot password</button>
-        </div>
+        <button type="submit" class="primary block">Sign in</button>
       </form>
-      <p id="authMsg" class="hint" role="status"></p>
-    </div>
-  </div>
-
-  <!-- ============ Pick a family ============ -->
-  <div id="familyView" class="admin-gate" hidden>
-    <div class="admin-card">
-      <h2>Your families</h2>
-      <p id="whoAmI" class="hint"></p>
-      <div id="familyList" class="family-list"></div>
-      <form id="newFamilyForm" class="admin-form">
-        <label><span>Start a new family exchange</span><input id="newFamilyName" placeholder="The Garber Family" maxlength="100" required></label>
-        <button type="submit">Create family</button>
-      </form>
-      <p class="hint">Someone else's family? Ask its owner to add your email as an admin, then refresh.</p>
-      <button type="button" class="ghost" data-act="signout">Sign out</button>
-    </div>
-  </div>
-
-  <!-- ============ Admin app ============ -->
-  <main id="appView" class="wrap" hidden>
-    <header class="topbar">
-      <div class="brand">
-        <div class="candles" aria-hidden="true">
-          <i class="lit"></i><i class="lit"></i><i class="lit"></i><i class="lit"></i>
-          <i class="lit shamash"></i><i></i><i></i><i></i><i></i>
-        </div>
-        <h1 id="familyTitle">Secret Macabi</h1>
+      <p id="authMsg" class="form-msg" role="status"></p>
+      <div class="card-links">
+        <button type="button" id="signUpBtn" class="link">Create account</button>
+        <button type="button" id="forgotBtn" class="link">Forgot password?</button>
       </div>
-      <nav class="topnav" aria-label="Main navigation">
-        <a id="wishlistNav" href="wishlist.html" target="_blank" rel="noopener">Wish list ↗</a>
-        <a href="#" id="switchFamily">Switch family</a>
-        <a href="#" data-act="signout">Sign out</a>
+    </div>
+  </div>
+
+  <!-- Choose family -->
+  <div id="familyView" class="center-view" hidden>
+    <div class="card narrow">
+      <div class="brand-mark">Secret Macabi</div>
+      <h1 class="card-title">Your families</h1>
+      <div id="familyList" class="family-list"></div>
+      <form id="newFamilyForm" class="inline-form">
+        <input id="newFamilyName" placeholder="New family name" maxlength="100" required aria-label="New family name">
+        <button type="submit">Create</button>
+      </form>
+      <div class="card-links">
+        <span id="whoAmI" class="muted"></span>
+        <button type="button" class="link" data-act="signout">Sign out</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin app -->
+  <div id="appView" hidden>
+    <header class="appbar">
+      <div class="appbar-inner">
+        <div class="appbar-title">
+          <span class="brand-mark">Secret Macabi</span>
+          <span id="familyTitle" class="family-name"></span>
+        </div>
+        <div class="appbar-actions">
+          <span id="saveState" class="save-state" aria-live="polite"></span>
+          <a id="wishlistNav" class="link" href="wishlist.html" target="_blank" rel="noopener">Wish lists ↗</a>
+          <button type="button" id="switchFamily" class="link">Switch</button>
+          <button type="button" class="link" data-act="signout">Sign out</button>
+        </div>
+      </div>
+      <nav class="tabs" role="tablist">
+        <button type="button" role="tab" data-tab="people" class="tab active">People</button>
+        <button type="button" role="tab" data-tab="draw" class="tab">Draw</button>
+        <button type="button" role="tab" data-tab="settings" class="tab">Settings</button>
       </nav>
     </header>
 
-    <p class="lede">Add everyone, draw names so nobody gets themselves or a recent match, then email each person their secret assignment.</p>
-
-    <section class="step" aria-labelledby="s1">
-      <div class="step-head">
-        <div><div class="num">Step 1</div><h2 id="s1">Party details</h2></div>
-        <span class="hint" id="settingsMsg" role="status"></span>
-      </div>
-      <div class="grid-2">
-        <label><span>Family / exchange name</span><input data-setting="name" maxlength="100" placeholder="e.g. Garber Family Secret Macabi"></label>
-        <label><span>Gift budget</span><input data-setting="budget" maxlength="50" placeholder="e.g. $25"></label>
-        <label><span>What it's for</span><input data-setting="occasion" maxlength="100" placeholder="e.g. Chanukah party on Dec 20"></label>
-        <label><span>Sign the email as</span><input data-setting="signoff" maxlength="100" placeholder="e.g. Love, Dina"></label>
-        <label class="wide"><span>Email subject ({name} becomes each person's name)</span><input data-setting="email_subject" maxlength="200" placeholder="e.g. 🤫 {name}, your Secret Macabi match is here!"></label>
-        <label><span>Avoid repeats from the last … draws</span><input data-setting="avoid_recent_draws" type="number" min="0" max="10"></label>
-      </div>
-    </section>
-
-    <section class="step" aria-labelledby="s2">
-      <div class="step-head">
-        <div><div class="num">Step 2</div><h2 id="s2">Who's in</h2></div>
-        <span class="counts" id="counts"></span>
-      </div>
-      <p class="hint">Kids draw from kids and adults from adults. "Never pair with" and "Past matches" are names this person can't get (separate with commas). Untick "In" to sit someone out this year without losing their history. Changes save automatically.</p>
-
-      <form id="addPersonForm" class="add-person">
-        <label><span>Name</span><input id="newName" maxlength="100" required></label>
-        <label><span>Email</span><input id="newEmail" type="email" placeholder="Parent's email for kids"></label>
-        <label><span>Group</span><select id="newGroup"><option>Adults</option><option>Kids</option></select></label>
-        <button type="submit" class="primary">Add person</button>
-      </form>
-
-      <div class="people" id="people"></div>
-
-      <details>
-        <summary>Import people or past draws from a file</summary>
-        <div class="body">
-          <label><span>People file (lines like <code>Adults,Dina,dina@example.com</code>)</span><input id="peopleFile" type="file" accept=".txt,.csv,text/plain"></label>
-          <p class="hint">Past results go one per line, like <code>Dina Leah Garber -Rivka</code>. They're added to that person's "Past matches".</p>
-          <label><span>Previous draw results</span><textarea id="historyText" placeholder="Dina Leah Garber -Rivka&#10;Moshe Garber -Shira"></textarea></label>
-          <label><span>…or upload past-year text files</span><input id="historyFile" type="file" accept=".txt,.csv,text/plain" multiple></label>
-          <div class="row"><button id="applyHistory" type="button">Add these past matches</button><span class="hint" id="historyMsg"></span></div>
+    <main class="page">
+      <!-- People -->
+      <section data-panel="people" class="panel">
+        <div class="panel-head">
+          <h2>People <span class="count" id="counts"></span></h2>
+          <label class="file-btn">Import list<input id="peopleFile" type="file" accept=".txt,.csv,text/plain" hidden></label>
         </div>
-      </details>
-    </section>
 
-    <section class="step" aria-labelledby="s3">
-      <div class="step-head">
-        <div><div class="num">Step 3</div><h2 id="s3">Draw and send</h2></div>
-        <div class="row" id="drawControls"></div>
-      </div>
-      <div id="drawMsg"></div>
-      <div class="results" id="results"></div>
-    </section>
+        <form id="addPersonForm" class="add-row">
+          <input id="newName" maxlength="100" placeholder="Name" required aria-label="Name">
+          <input id="newEmail" type="email" placeholder="Email" aria-label="Email">
+          <select id="newGroup" aria-label="Group"><option>Adults</option><option>Kids</option></select>
+          <button type="submit" class="primary">Add</button>
+        </form>
 
-    <section class="step" aria-labelledby="s4">
-      <div class="step-head">
-        <div><div class="num">Step 4</div><h2 id="s4">Sharing &amp; admins</h2></div>
-      </div>
-      <label><span>Family wish-list link (anyone with it can view and add to the lists)</span>
-        <input id="shareLink" readonly></label>
-      <div class="row">
-        <button id="copyShare" type="button">Copy link</button>
-        <button id="regenShare" type="button" class="ghost">Make a new link (old one stops working)</button>
-        <button id="testEmail" type="button" class="ghost">Send me a test email</button>
-      </div>
-      <div>
-        <div class="group-title"><span>Admins</span><span id="adminCount"></span></div>
-        <div id="adminList" class="admin-list"></div>
-      </div>
-      <form id="addAdminForm" class="row" hidden>
-        <label class="grow"><span>Add an admin by email (they must create an account first)</span><input id="adminEmail" type="email" required></label>
-        <label><span>Role</span><select id="adminRole"><option value="admin">Admin</option><option value="owner">Owner</option></select></label>
-        <button type="submit">Add admin</button>
-      </form>
-      <p class="hint">Admins can manage people, draw, and send. Owners can also add or remove admins.</p>
-    </section>
+        <div class="people" id="people"></div>
+      </section>
 
-    <footer>Matches stay hidden until you click Show, so you can run the draw without seeing who got whom.</footer>
-  </main>
+      <!-- Draw -->
+      <section data-panel="draw" class="panel" hidden>
+        <div class="panel-head">
+          <h2>Draw</h2>
+          <div class="row" id="drawControls"></div>
+        </div>
+        <div id="drawMsg"></div>
+        <div class="results" id="results"></div>
+      </section>
+
+      <!-- Settings -->
+      <section data-panel="settings" class="panel" hidden>
+        <div class="settings-block">
+          <h3>Event</h3>
+          <div class="grid-2">
+            <label><span>Name</span><input data-setting="name" maxlength="100" placeholder="Rosen Family Exchange"></label>
+            <label><span>Budget</span><input data-setting="budget" maxlength="50" placeholder="$25"></label>
+            <label><span>Occasion</span><input data-setting="occasion" maxlength="100" placeholder="Chanukah party, Dec 20"></label>
+            <label><span>Email sign-off</span><input data-setting="signoff" maxlength="100" placeholder="Love, Aunt Miriam"></label>
+            <label class="wide"><span>Email subject</span><input data-setting="email_subject" maxlength="200" placeholder="{name}, your Secret Macabi match is here"></label>
+            <label><span>Skip matches from last</span>
+              <select data-setting="avoid_recent_draws">
+                <option value="0">No restriction</option>
+                <option value="1">1 draw</option>
+                <option value="2">2 draws</option>
+                <option value="3">3 draws</option>
+              </select></label>
+          </div>
+        </div>
+
+        <div class="settings-block">
+          <h3>Wish list link</h3>
+          <div class="inline-form">
+            <input id="shareLink" readonly aria-label="Wish list link">
+            <button id="copyShare" type="button">Copy</button>
+          </div>
+          <div class="row">
+            <button id="testEmail" type="button" class="link">Send test email</button>
+            <button id="regenShare" type="button" class="link danger">Reset link</button>
+          </div>
+        </div>
+
+        <div class="settings-block">
+          <h3>Admins</h3>
+          <div id="adminList" class="admin-list"></div>
+          <form id="addAdminForm" class="inline-form" hidden>
+            <input id="adminEmail" type="email" placeholder="Email of someone with an account" required aria-label="Admin email">
+            <select id="adminRole" aria-label="Role"><option value="admin">Admin</option><option value="owner">Owner</option></select>
+            <button type="submit">Add</button>
+          </form>
+        </div>
+
+        <details class="settings-block">
+          <summary><h3>Past draws</h3></summary>
+          <p class="muted">One per line: <code>Giver - Receiver</code>. These pairs won't repeat.</p>
+          <textarea id="historyText" placeholder="Leah Rosen - Ben&#10;Ben Rosen - Noa"></textarea>
+          <div class="row">
+            <button id="applyHistory" type="button">Add</button>
+            <label class="file-btn">Upload file<input id="historyFile" type="file" accept=".txt,.csv,text/plain" multiple hidden></label>
+            <span class="muted" id="historyMsg"></span>
+          </div>
+        </details>
+      </section>
+    </main>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.4/dist/umd/supabase.js"></script>
-  <script src="config.js?v=3"></script>
-  <script src="app.js?v=3"></script>
+  <script src="config.js?v=4"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

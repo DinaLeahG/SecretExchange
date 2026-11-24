@@ -4,6 +4,7 @@
   const cfg = window.SECRET_MACABI_CONFIG || {};
   const $ = (id) => document.getElementById(id);
   const LAST_FAMILY_KEY = "secret-macabi-last-family";
+  const LAST_TAB_KEY = "secret-macabi-last-tab";
 
   // ---------------------------------------------------------------- utilities
   function esc(value) {
@@ -11,9 +12,7 @@
       { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
     ));
   }
-  function norm(value) {
-    return String(value || "").toLowerCase().replace(/\s+/g, " ").trim();
-  }
+  function norm(value) { return String(value || "").toLowerCase().replace(/\s+/g, " ").trim(); }
   function sameName(a, b) {
     const x = norm(a), y = norm(b);
     if (!x || !y) return false;
@@ -21,9 +20,7 @@
     if (x.indexOf(" ") < 0 || y.indexOf(" ") < 0) return x.split(" ")[0] === y.split(" ")[0];
     return false;
   }
-  function list(value) {
-    return String(value || "").split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean);
-  }
+  function list(value) { return String(value || "").split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean); }
   function storageGet(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
   function storageSet(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
 
@@ -34,29 +31,53 @@
     el.className = "toast " + (kind || "ok");
     el.hidden = false;
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { el.hidden = true; }, kind === "bad" ? 7000 : 3500);
+    toastTimer = setTimeout(() => { el.hidden = true; }, kind === "bad" ? 6000 : 3000);
   }
   function friendlyError(error) {
     const msg = (error && (error.message || error.error_description || error.error)) || String(error);
-    if (/members_family_name_uidx/.test(msg)) return "Someone with that name is already in this family. Add a last name or initial.";
+    if (/members_family_name_uidx/.test(msg)) return "That name is already on the list.";
     if (/members_email_check/.test(msg)) return "That email address doesn't look right.";
-    if (/Failed to fetch|NetworkError/i.test(msg)) return "Couldn't reach the server. Check your connection and try again.";
+    if (/Failed to fetch|NetworkError/i.test(msg)) return "Connection problem. Try again.";
     return msg;
+  }
+  function views(name) {
+    ["authView", "familyView", "appView"].forEach((v) => { $(v).hidden = v !== name; });
   }
   function authMessage(text, kind) {
     const el = $("authMsg");
     el.textContent = text || "";
-    el.className = kind === "bad" ? "admin-error" : "hint";
+    el.className = "form-msg" + (kind === "bad" ? " bad" : "");
   }
-  function views(name) {
-    ["authView", "familyView", "appView"].forEach((v) => { $(v).hidden = v !== name; });
+
+  // Every database write goes through here so the header can show "Saving… / Saved".
+  let pendingSaves = 0, saveTimer;
+  async function persist(work) {
+    const el = $("saveState");
+    pendingSaves++;
+    el.textContent = "Saving…"; el.className = "save-state";
+    clearTimeout(saveTimer);
+    try {
+      const result = await work();
+      if (result && result.error) throw result.error;
+      return result;
+    } catch (error) {
+      el.textContent = "Not saved"; el.className = "save-state bad";
+      toast(friendlyError(error), "bad");
+      throw error;
+    } finally {
+      pendingSaves--;
+      if (!pendingSaves && el.textContent === "Saving…") {
+        el.textContent = "Saved ✓"; el.className = "save-state ok";
+        saveTimer = setTimeout(() => { el.textContent = ""; }, 2500);
+      }
+    }
   }
 
   // ---------------------------------------------------------------- setup check
   if (!window.supabase || !cfg.supabaseUrl || /YOUR-/.test(cfg.supabaseUrl + cfg.supabaseAnonKey)) {
     views("authView");
     $("authForm").hidden = true;
-    $("authMsg").innerHTML = "This site isn't connected to its database yet. Fill in <code>supabaseUrl</code> and <code>supabaseAnonKey</code> in <code>config.js</code>.";
+    authMessage("Site not configured. Add Supabase settings to config.js.", "bad");
     return;
   }
 
@@ -68,11 +89,12 @@
   let family = null;
   let myRole = null;
   let members = [];
-  let draws = [];               // newest first
-  let assignments = [];         // for all loaded draws
-  let preview = null;           // unsaved draw: [{giver_id, receiver_id}]
-  let notice = "";              // last send result banner (HTML)
+  let draws = [];          // newest first
+  let assignments = [];
+  let preview = null;      // unsaved draw: [{giver_id, receiver_id}]
+  let notice = "";
   const revealed = {};
+  const expanded = new Set();
 
   // ================================================================= AUTH
   async function signIn(event) {
@@ -81,29 +103,26 @@
     const { error } = await sb.auth.signInWithPassword({ email: $("authEmail").value.trim(), password: $("authPassword").value });
     if (!error) { authMessage(""); return; }
     authMessage(/invalid login credentials/i.test(error.message)
-      ? "Wrong email or password. First time here? Press “Create account” instead."
+      ? "Wrong email or password. New here? Use Create account."
       : friendlyError(error), "bad");
   }
 
   async function signUp() {
     const email = $("authEmail").value.trim();
     const password = $("authPassword").value;
-    if (!email || password.length < 8) {
-      authMessage("Enter your email and a password of at least 8 characters, then press Create account.", "bad");
-      return;
-    }
-    authMessage("Creating your account…");
+    if (!email || password.length < 8) { authMessage("Enter an email and a password of 8+ characters.", "bad"); return; }
+    authMessage("Creating account…");
     const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: pageUrl } });
-    if (error) { authMessage(/already registered/i.test(error.message) ? "That email already has an account. Press Sign in." : friendlyError(error), "bad"); return; }
-    if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
-      authMessage("That email already has an account. Press Sign in.", "bad"); return;
-    }
-    authMessage(data.session ? "" : "Account created. Check your email to confirm it, then sign in.");
+    const exists = (error && /already registered/i.test(error.message)) ||
+      (data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0);
+    if (exists) { authMessage("That email already has an account. Sign in instead.", "bad"); return; }
+    if (error) { authMessage(friendlyError(error), "bad"); return; }
+    authMessage(data.session ? "" : "Check your email to confirm your account.");
   }
 
   async function forgotPassword() {
     const email = $("authEmail").value.trim();
-    if (!email) { authMessage("Type your email first, then press Forgot password.", "bad"); return; }
+    if (!email) { authMessage("Enter your email first.", "bad"); return; }
     const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: pageUrl });
     authMessage(error ? friendlyError(error) : "If that account exists, a reset link is on its way.", error ? "bad" : "");
   }
@@ -119,7 +138,7 @@
     session = newSession;
     setTimeout(async () => {
       if (eventName === "PASSWORD_RECOVERY") {
-        const password = window.prompt("Choose a new password (at least 8 characters):");
+        const password = window.prompt("New password (8+ characters):");
         if (password && password.length >= 8) {
           const { error } = await sb.auth.updateUser({ password });
           toast(error ? friendlyError(error) : "Password updated.", error ? "bad" : "ok");
@@ -133,13 +152,13 @@
   // ================================================================= FAMILIES
   async function showFamilies(autoOpen) {
     views("familyView");
-    $("whoAmI").textContent = "Signed in as " + session.user.email;
+    $("whoAmI").textContent = session.user.email;
     const { data, error } = await sb.from("family_admins").select("role, families(id, name)").eq("user_id", session.user.id);
     if (error) { $("familyList").innerHTML = '<div class="banner bad">' + esc(friendlyError(error)) + "</div>"; return; }
     const rows = (data || []).filter((r) => r.families);
     $("familyList").innerHTML = rows.length
-      ? rows.map((r) => `<button type="button" class="family-pick" data-id="${esc(r.families.id)}">${esc(r.families.name)} <span class="hint">${esc(r.role)}</span></button>`).join("")
-      : '<div class="empty">You are not an admin of any family yet.</div>';
+      ? rows.map((r) => `<button type="button" class="family-pick" data-id="${esc(r.families.id)}"><span>${esc(r.families.name)}</span><span class="muted">${esc(r.role)}</span></button>`).join("")
+      : '<p class="muted">No families yet.</p>';
 
     const last = storageGet(LAST_FAMILY_KEY);
     if (autoOpen && last && rows.some((r) => r.families.id === last)) openFamily(last);
@@ -165,13 +184,26 @@
     family = fam.data;
     myRole = role.data ? role.data.role : "admin";
     storageSet(LAST_FAMILY_KEY, id);
-    preview = null;
-    notice = "";
+    preview = null; notice = "";
+    expanded.clear();
     Object.keys(revealed).forEach((k) => delete revealed[k]);
     views("appView");
+    showTab(storageGet(LAST_TAB_KEY) || "people");
     renderSettings();
     renderShare();
     await Promise.all([loadMembers(), loadDraws(), loadAdmins()]);
+  }
+
+  // ================================================================= TABS
+  function showTab(name) {
+    if (!document.querySelector(`[data-panel="${name}"]`)) name = "people";
+    document.querySelectorAll("[data-tab]").forEach((t) => {
+      const on = t.dataset.tab === name;
+      t.classList.toggle("active", on);
+      t.setAttribute("aria-selected", on);
+    });
+    document.querySelectorAll("[data-panel]").forEach((p) => { p.hidden = p.dataset.panel !== name; });
+    storageSet(LAST_TAB_KEY, name);
   }
 
   // ================================================================= SETTINGS
@@ -188,16 +220,14 @@
     let value = el.value;
     if (key === "avoid_recent_draws") value = Math.max(0, Math.min(10, parseInt(value, 10) || 0));
     if (key === "name" && !value.trim()) { el.value = family.name; return; }
-    $("settingsMsg").textContent = "Saving…";
-    const { error } = await sb.from("families").update({ [key]: value }).eq("id", family.id);
-    if (error) { $("settingsMsg").textContent = ""; toast(friendlyError(error), "bad"); el.value = family[key]; return; }
-    family[key] = value;
-    $("settingsMsg").textContent = "Saved";
-    if (key === "name") renderSettings();
-    setTimeout(() => { $("settingsMsg").textContent = ""; }, 1500);
+    try {
+      await persist(() => sb.from("families").update({ [key]: value }).eq("id", family.id));
+      family[key] = value;
+      if (key === "name") renderSettings();
+    } catch (e) { el.value = family[key] ?? ""; }
   }
 
-  // ================================================================= MEMBERS
+  // ================================================================= PEOPLE
   async function loadMembers() {
     const { data, error } = await sb.from("members").select("*").eq("family_id", family.id).order("group_name").order("created_at");
     if (error) { toast(friendlyError(error), "bad"); return; }
@@ -210,30 +240,45 @@
   function renderPeople() {
     const box = $("people");
     if (!members.length) {
-      box.innerHTML = '<div class="empty">Nobody yet. Add the adults and kids taking part.</div>';
+      box.innerHTML = '<div class="empty">No one added yet.</div>';
     } else {
-      box.innerHTML = members.map((p) => `
-        <div class="person ${p.active ? "" : "inactive"}" data-id="${esc(p.id)}">
-          <label><span>Name</span><input data-f="name" value="${esc(p.name)}" maxlength="100"></label>
-          <label class="email"><span>Email</span><input data-f="email" type="email" value="${esc(p.email || "")}" placeholder="Parent's email for kids"></label>
-          <label><span>Group</span><select data-f="group_name">
-            <option ${p.group_name === "Adults" ? "selected" : ""}>Adults</option>
-            <option ${p.group_name === "Kids" ? "selected" : ""}>Kids</option></select></label>
-          <label><span>Gender</span><select data-f="gender" ${p.group_name === "Adults" ? "" : "disabled"}>
-            <option value="" ${!p.gender ? "selected" : ""}>—</option>
-            <option ${p.gender === "F" ? "selected" : ""}>F</option>
-            <option ${p.gender === "M" ? "selected" : ""}>M</option></select></label>
-          <label><span>Never pair with</span><input data-f="exclusions" value="${esc(p.exclusions)}"></label>
-          <label><span>Past matches</span><input data-f="past_matches" value="${esc((p.past_matches || []).join(", "))}"></label>
-          <label class="in-toggle"><span>In</span><input type="checkbox" data-f="active" ${p.active ? "checked" : ""}></label>
-          <button class="remove" type="button" data-act="remove" aria-label="Remove ${esc(p.name)}">Remove</button>
-        </div>`).join("");
+      box.innerHTML = members.map((p) => {
+        const open = expanded.has(p.id);
+        const tags = [
+          !p.active ? "Sitting out" : "",
+          p.exclusions ? "Exclusions" : "",
+          (p.past_matches || []).length ? "History" : ""
+        ].filter(Boolean).map((t) => `<span class="tag">${t}</span>`).join("");
+        return `
+        <div class="person ${p.active ? "" : "inactive"} ${open ? "open" : ""}" data-id="${esc(p.id)}">
+          <div class="person-main">
+            <input data-f="name" value="${esc(p.name)}" maxlength="100" aria-label="Name">
+            <input data-f="email" type="email" value="${esc(p.email || "")}" placeholder="Email" aria-label="Email">
+            <select data-f="group_name" aria-label="Group">
+              <option ${p.group_name === "Adults" ? "selected" : ""}>Adults</option>
+              <option ${p.group_name === "Kids" ? "selected" : ""}>Kids</option></select>
+            <span class="tags">${tags}</span>
+            <button type="button" class="icon-btn" data-act="toggle" aria-expanded="${open}" aria-label="More options for ${esc(p.name)}">${open ? "Close" : "Edit"}</button>
+          </div>
+          ${open ? `
+          <div class="person-more">
+            ${p.group_name === "Adults" ? `<label><span>Gender</span><select data-f="gender">
+              <option value="" ${!p.gender ? "selected" : ""}>Not set</option>
+              <option value="F" ${p.gender === "F" ? "selected" : ""}>Female</option>
+              <option value="M" ${p.gender === "M" ? "selected" : ""}>Male</option></select></label>` : ""}
+            <label><span>Never pair with</span><input data-f="exclusions" value="${esc(p.exclusions)}" placeholder="Names, comma separated"></label>
+            <label><span>Past matches</span><input data-f="past_matches" value="${esc((p.past_matches || []).join(", "))}" placeholder="Names, comma separated"></label>
+            <div class="person-more-actions">
+              <label class="check"><input type="checkbox" data-f="active" ${p.active ? "" : "checked"} data-invert="1"> Sitting out this year</label>
+              <button class="link danger" type="button" data-act="remove">Remove</button>
+            </div>
+          </div>` : ""}
+        </div>`;
+      }).join("");
     }
     const active = members.filter((m) => m.active);
     const adults = active.filter((m) => m.group_name === "Adults").length;
-    const kids = active.length - adults;
-    $("counts").textContent = `${adults} adult${adults === 1 ? "" : "s"} · ${kids} kid${kids === 1 ? "" : "s"}` +
-      (members.length > active.length ? ` · ${members.length - active.length} sitting out` : "");
+    $("counts").textContent = members.length ? `${adults} adults · ${active.length - adults} kids` : "";
   }
 
   async function addPerson(event) {
@@ -242,17 +287,17 @@
       family_id: family.id,
       name: $("newName").value.trim(),
       email: $("newEmail").value.trim() || null,
-      group_name: $("newGroup").value,
-      gender: null
+      group_name: $("newGroup").value
     };
     if (!row.name) return;
-    const { data, error } = await sb.from("members").insert(row).select().single();
-    if (error) { toast(friendlyError(error), "bad"); return; }
-    members.push(data);
-    $("newName").value = ""; $("newEmail").value = "";
-    $("newName").focus();
-    renderPeople();
-    invalidatePreview();
+    try {
+      const { data } = await persist(() => sb.from("members").insert(row).select().single());
+      members.push(data);
+      $("newName").value = ""; $("newEmail").value = "";
+      $("newName").focus();
+      renderPeople();
+      invalidatePreview();
+    } catch (e) {}
   }
 
   async function updatePersonField(event) {
@@ -263,6 +308,7 @@
     if (!person) return;
 
     let value = event.target.type === "checkbox" ? event.target.checked : event.target.value;
+    if (event.target.dataset.invert) value = !value;
     if (field === "past_matches") value = list(value);
     if (field === "email") value = value.trim() || null;
     if (field === "gender") value = value || null;
@@ -270,26 +316,32 @@
     const patch = { [field]: value };
     if (field === "group_name" && value === "Kids") patch.gender = null;
 
-    const { error } = await sb.from("members").update(patch).eq("id", person.id);
-    if (error) { toast(friendlyError(error), "bad"); renderPeople(); return; }
-    Object.assign(person, patch);
-    if (field === "group_name" || field === "active") renderPeople();
-    if (field === "name") renderDraw();
-    invalidatePreview();
+    try {
+      await persist(() => sb.from("members").update(patch).eq("id", person.id));
+      Object.assign(person, patch);
+      if (["group_name", "active", "exclusions", "past_matches"].includes(field)) renderPeople();
+      if (field === "name") renderDraw();
+      invalidatePreview();
+    } catch (e) { renderPeople(); }
   }
 
-  async function removePerson(event) {
-    const button = event.target.closest('[data-act="remove"]');
+  async function onPeopleClick(event) {
+    const button = event.target.closest("[data-act]");
     if (!button) return;
     const person = memberById(button.closest(".person").dataset.id);
     if (!person) return;
-    const ok = window.confirm(`Remove ${person.name} for good? This also deletes their wish list and their part in past draws.\n\nTo just skip them this year, untick "In" instead.`);
-    if (!ok) return;
-    const { error } = await sb.from("members").delete().eq("id", person.id);
-    if (error) { toast(friendlyError(error), "bad"); return; }
-    members = members.filter((m) => m.id !== person.id);
-    renderPeople();
-    await loadDraws();
+    if (button.dataset.act === "toggle") {
+      if (expanded.has(person.id)) expanded.delete(person.id); else expanded.add(person.id);
+      renderPeople();
+    } else if (button.dataset.act === "remove") {
+      if (!window.confirm(`Remove ${person.name}? This deletes their wish list and draw history.`)) return;
+      try {
+        await persist(() => sb.from("members").delete().eq("id", person.id));
+        members = members.filter((m) => m.id !== person.id);
+        renderPeople();
+        await loadDraws();
+      } catch (e) {}
+    }
   }
 
   function parsePersonLine(line) {
@@ -308,6 +360,7 @@
     const file = event.target.files && event.target.files[0];
     if (!file) return;
     const text = await file.text();
+    event.target.value = "";
     const seen = new Set(members.map((m) => norm(m.name)));
     const rows = [];
     text.replace(/\r/g, "").split("\n").forEach((line) => {
@@ -316,13 +369,13 @@
       seen.add(norm(p.name));
       rows.push({ family_id: family.id, name: p.name, email: p.email, group_name: p.group });
     });
-    event.target.value = "";
-    if (!rows.length) { toast("No new names found in that file.", "bad"); return; }
-    const { error } = await sb.from("members").insert(rows);
-    if (error) { toast(friendlyError(error), "bad"); return; }
-    toast(`Imported ${rows.length} ${rows.length === 1 ? "person" : "people"}.`);
-    await loadMembers();
-    invalidatePreview();
+    if (!rows.length) { toast("No new names in that file.", "bad"); return; }
+    try {
+      await persist(() => sb.from("members").insert(rows));
+      toast(`Added ${rows.length}.`);
+      await loadMembers();
+      invalidatePreview();
+    } catch (e) {}
   }
 
   function parseHistoryLine(line) {
@@ -339,7 +392,7 @@
 
   async function applyHistory() {
     const lines = $("historyText").value.replace(/\r/g, "").split("\n").map(parseHistoryLine).filter(Boolean);
-    if (!lines.length) { $("historyMsg").textContent = "No lines like “Name -Match” found."; return; }
+    if (!lines.length) { $("historyMsg").textContent = "No valid lines."; return; }
     const changes = new Map();
     let matched = 0;
     lines.forEach(({ who, picked }) => {
@@ -351,13 +404,14 @@
       if (!past.some((n) => sameName(n, picked))) past.push(picked);
       changes.set(person.id, past);
     });
-    for (const [id, past] of changes) {
-      const { error } = await sb.from("members").update({ past_matches: past }).eq("id", id);
-      if (error) { toast(friendlyError(error), "bad"); return; }
-      memberById(id).past_matches = past;
-    }
-    $("historyMsg").textContent = `Matched ${matched} of ${lines.length} lines.` + (matched < lines.length ? " Check spelling for the rest." : "");
-    if (matched) $("historyText").value = "";
+    try {
+      for (const [id, past] of changes) {
+        await persist(() => sb.from("members").update({ past_matches: past }).eq("id", id));
+        memberById(id).past_matches = past;
+      }
+    } catch (e) { return; }
+    $("historyMsg").textContent = `${matched} of ${lines.length} matched.` + (matched < lines.length ? " Check spelling." : "");
+    if (matched === lines.length) $("historyText").value = "";
     renderPeople();
     invalidatePreview();
   }
@@ -407,10 +461,10 @@
   function solve(group, label, recentReceivers) {
     const n = group.length;
     if (n === 0) return { pairs: [] };
-    if (n < 2) return { error: label + " needs at least 2 people to draw." };
+    if (n < 2) return { error: `${label} need at least 2 people.` };
     const allowed = group.map((g, i) => group.map((_, j) => j).filter((j) => j !== i && !blocked(g, group[j], recentReceivers)));
     for (let i = 0; i < n; i++) {
-      if (!allowed[i].length) return { error: group[i].name + " has nobody left they can draw. Loosen their exclusions or past matches." };
+      if (!allowed[i].length) return { error: `${group[i].name} has no one left to draw. Loosen their exclusions.` };
     }
     const order = group.map((_, i) => i).sort((a, b) => allowed[a].length - allowed[b].length);
     const used = new Array(n).fill(false), pick = new Array(n);
@@ -427,17 +481,12 @@
       }
       return false;
     }
-    if (!dfs(0)) {
-      return { error: `There's no way to draw ${label.toLowerCase()} with these rules. Remove an exclusion or lower "Avoid repeats".` };
-    }
+    if (!dfs(0)) return { error: `No valid draw for ${label.toLowerCase()} with these rules. Remove an exclusion or relax "Skip matches".` };
     return { pairs: group.map((g, i) => ({ giver_id: g.id, receiver_id: group[pick[i]].id })) };
   }
 
   function makeDraw() {
     const active = members.filter((m) => m.active);
-    const problems = [];
-    active.forEach((m) => { if (!m.email) problems.push(m.name + " has no email (they can still be drawn, but won't get an email)."); });
-
     const recentReceivers = new Map();
     draws.slice(0, family.avoid_recent_draws || 0).forEach((d) => {
       assignmentsFor(d.id).forEach((a) => {
@@ -445,121 +494,121 @@
         recentReceivers.get(a.giver_id).add(a.receiver_id);
       });
     });
-
     const adults = solve(active.filter((m) => m.group_name === "Adults"), "Adults", recentReceivers);
     const kids = solve(active.filter((m) => m.group_name === "Kids"), "Kids", recentReceivers);
     const error = adults.error || kids.error;
-    if (error) { $("drawMsg").innerHTML = '<div class="banner bad">' + esc(error) + "</div>"; return; }
+    if (error) { notice = banner("bad", error); preview = null; renderDraw(); return; }
     preview = adults.pairs.concat(kids.pairs);
-    if (preview.length < 2) { preview = null; $("drawMsg").innerHTML = '<div class="banner bad">Add at least 2 people first.</div>'; return; }
+    if (preview.length < 2) { preview = null; notice = banner("bad", "Add at least 2 people first."); renderDraw(); return; }
+    const noEmail = active.filter((m) => !m.email).map((m) => m.name);
+    notice = noEmail.length ? banner("gold", "No email for: " + noEmail.join(", ")) : "";
     Object.keys(revealed).forEach((k) => delete revealed[k]);
-    renderDraw(problems);
+    renderDraw();
   }
 
+  function banner(kind, text) { return `<div class="banner ${kind}">${esc(text)}</div>`; }
+
   async function saveDraw() {
-    const { data, error } = await sb.rpc("save_draw", { p_family: family.id, p_pairs: preview });
-    if (error) { toast(friendlyError(error), "bad"); return; }
-    preview = null;
-    toast("Draw saved. Now send the emails.");
-    await loadDraws();
-    return data;
+    try {
+      await persist(() => sb.rpc("save_draw", { p_family: family.id, p_pairs: preview }));
+      preview = null;
+      notice = banner("ok", "Draw saved. Ready to send.");
+      await loadDraws();
+    } catch (e) {}
   }
 
   async function deleteCurrentDraw() {
     const d = currentDraw();
     if (!d) return;
     const sent = assignmentsFor(d.id).filter((a) => a.sent_at).length;
-    const warning = sent
-      ? `${sent} people were already emailed their match from this draw. Delete it anyway?`
-      : "Delete this draw? (Nobody has been emailed yet.)";
-    if (!window.confirm(warning)) return;
-    const { error } = await sb.from("draws").delete().eq("id", d.id);
-    if (error) { toast(friendlyError(error), "bad"); return; }
-    await loadDraws();
+    if (!window.confirm(sent ? `${sent} people were already emailed. Delete this draw anyway?` : "Delete this draw?")) return;
+    try {
+      await persist(() => sb.from("draws").delete().eq("id", d.id));
+      notice = "";
+      await loadDraws();
+    } catch (e) {}
+  }
+
+  async function apiPost(path, body) {
+    if (!cfg.apiBase) throw new Error("apiBase is missing in config.js");
+    const { data: { session: s } } = await sb.auth.getSession();
+    if (!s) throw new Error("Please sign in again.");
+    const response = await fetch(cfg.apiBase.replace(/\/$/, "") + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: "Bearer " + s.access_token },
+      body: JSON.stringify(body || {})
+    });
+    return response.json().catch(() => ({ ok: false, error: "Server error " + response.status }));
   }
 
   async function sendEmails(drawId, assignmentIds, resend) {
-    if (!cfg.apiBase) { toast("apiBase is missing in config.js", "bad"); return; }
-    const { data: { session: s } } = await sb.auth.getSession();
-    if (!s) { toast("Please sign in again.", "bad"); return; }
-    $("drawMsg").innerHTML = '<div class="banner gold">Sending… the server may take up to a minute to wake up.</div>';
-    notice = "";
+    notice = banner("gold", "Sending… (can take up to a minute)");
+    renderDraw();
     try {
-      const response = await fetch(cfg.apiBase.replace(/\/$/, "") + "/api/send-assignments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: "Bearer " + s.access_token },
-        body: JSON.stringify({ drawId, assignmentIds, resend: !!resend })
-      });
-      const result = await response.json().catch(() => ({ ok: false, error: "Server error " + response.status }));
+      const result = await apiPost("/api/send-assignments", { drawId, assignmentIds, resend: !!resend });
       const failed = (result.results || []).filter((r) => !r.ok);
       const sentNow = (result.results || []).filter((r) => r.ok && !r.skipped).length;
-      notice = !result.results
-        ? '<div class="banner bad">' + esc(result.error || "Sending failed") + "</div>"
-        : failed.length
-        ? `<div class="banner bad"><span>Sent ${sentNow}. ${failed.length} failed:<br>${failed.map((f) => esc(f.error)).join("<br>")}</span></div>`
-        : `<div class="banner ok"><span>Sent ${sentNow} email${sentNow === 1 ? "" : "s"}.</span></div>`;
+      if (!result.results) notice = banner("bad", result.error || "Sending failed.");
+      else if (failed.length) notice = `<div class="banner bad">Sent ${sentNow}. ${failed.length} failed:<br>${failed.map((f) => esc(f.error)).join("<br>")}</div>`;
+      else notice = banner("ok", `Sent ${sentNow} email${sentNow === 1 ? "" : "s"}.`);
     } catch (error) {
-      notice = '<div class="banner bad">' + esc(friendlyError(error)) + "</div>";
+      notice = banner("bad", friendlyError(error));
     }
     await loadDraws();
   }
 
+  function nameOf(id) { return (memberById(id) || { name: "(removed)" }).name; }
+
   function resultsText(rows) {
-    let out = "Secret Macabi — " + family.name + "\n";
+    let out = family.name + "\n";
     ["Adults", "Kids"].forEach((group) => {
       const g = rows.filter((r) => (memberById(r.giver_id) || {}).group_name === group);
       if (!g.length) return;
       out += "\n" + group.toUpperCase() + "\n";
-      g.forEach((r) => { out += nameOf(r.giver_id) + " -" + nameOf(r.receiver_id) + "\n"; });
+      g.forEach((r) => { out += nameOf(r.giver_id) + " - " + nameOf(r.receiver_id) + "\n"; });
     });
     return out;
   }
-  function nameOf(id) { return (memberById(id) || { name: "(removed)" }).name; }
 
-  function renderDraw(warnings) {
+  function renderDraw() {
     const controls = $("drawControls");
     const d = currentDraw();
     const rows = preview || (d ? assignmentsFor(d.id) : []);
+    let status = "";
 
     if (preview) {
-      controls.innerHTML = '<button class="primary" data-act="save">Save this draw</button><button data-act="draw">Shuffle again</button><button class="ghost" data-act="cancel">Cancel</button>';
-      $("drawMsg").innerHTML = '<div class="banner gold"><span>Not saved yet. Save the draw to lock it in, then send the emails.' +
-        (warnings && warnings.length ? "<br>" + warnings.map(esc).join("<br>") : "") + "</span></div>";
+      controls.innerHTML = '<button class="ghost" data-act="cancel">Cancel</button><button data-act="draw">Reshuffle</button><button class="primary" data-act="save">Save draw</button>';
+      status = banner("gold", "Preview. Save to lock it in.");
     } else if (d) {
       const unsent = rows.filter((r) => !r.sent_at).length;
       controls.innerHTML =
-        (unsent ? `<button class="primary" data-act="sendAll">Send ${unsent} unsent email${unsent === 1 ? "" : "s"}</button>` : "") +
-        '<button data-act="download">Download results</button><button data-act="draw">Start a new draw</button><button class="ghost" data-act="deleteDraw">Delete this draw</button>';
-      $("drawMsg").innerHTML = notice ||
-        `<div class="banner ok"><span>Draw from ${new Date(d.created_at).toLocaleDateString()}: ${rows.length - unsent} of ${rows.length} emailed.</span></div>`;
+        '<button class="ghost" data-act="deleteDraw">Delete</button><button class="ghost" data-act="download">Download</button><button data-act="draw">New draw</button>' +
+        (unsent ? `<button class="primary" data-act="sendAll">Send ${unsent} email${unsent === 1 ? "" : "s"}</button>` : "");
+      status = `<p class="muted">Drawn ${esc(new Date(d.created_at).toLocaleDateString())} · ${rows.length - unsent}/${rows.length} sent</p>`;
     } else {
       controls.innerHTML = '<button class="primary" data-act="draw">Draw names</button>';
-      $("drawMsg").innerHTML = "";
     }
+    $("drawMsg").innerHTML = notice + status;
 
     const box = $("results");
-    if (!rows.length) {
-      box.innerHTML = '<div class="empty">Nobody has been drawn yet. Check the list in step 2, then press Draw names.</div>';
-      return;
-    }
+    if (!rows.length) { box.innerHTML = '<div class="empty">No draw yet.</div>'; return; }
     box.innerHTML = ["Adults", "Kids"].map((group) => {
       const g = rows.filter((r) => (memberById(r.giver_id) || {}).group_name === group);
       if (!g.length) return "";
-      return `<div>
-        <div class="group-title"><span>${group}</span><span>${g.length}</span></div>
-        <div class="ledger">${g.map((r) => {
+      return `<div class="result-group">
+        <div class="group-title">${group}</div>
+        ${g.map((r) => {
           const giver = memberById(r.giver_id) || { name: "(removed)" };
           const key = r.id || r.giver_id;
           const shown = revealed[key];
-          return `<div class="pair ${r.sent_at ? "is-sent" : ""}" data-key="${esc(key)}" data-id="${esc(r.id || "")}">
-            <div class="who"><strong>${esc(giver.name)}</strong>
-              <span class="addr">${giver.email ? esc(giver.email) : "No email"}${r.sent_at ? " · sent " + esc(new Date(r.sent_at).toLocaleString()) : ""}</span></div>
-            <div class="match ${shown ? "" : "hidden-match"}">${shown ? "→ " + esc(nameOf(r.receiver_id)) : "• • • •"}</div>
-            <div class="actions">
-              <button type="button" data-act="reveal">${shown ? "Hide" : "Show"}</button>
-              ${r.id ? `<button type="button" data-act="sendOne">${r.sent_at ? "Resend" : "Send"}</button>` : ""}
+          return `<div class="pair" data-key="${esc(key)}" data-id="${esc(r.id || "")}">
+            <div class="who"><strong>${esc(giver.name)}</strong><span class="muted">${giver.email ? esc(giver.email) : "No email"}</span></div>
+            <button type="button" class="match ${shown ? "" : "hidden-match"}" data-act="reveal" title="${shown ? "Hide" : "Show"}">${shown ? esc(nameOf(r.receiver_id)) : "••••"}</button>
+            <div class="pair-status">
+              ${r.sent_at ? '<span class="tag ok">Sent</span>' : ""}
+              ${r.id ? `<button type="button" class="link" data-act="sendOne">${r.sent_at ? "Resend" : "Send"}</button>` : ""}
             </div></div>`;
-        }).join("")}</div></div>`;
+        }).join("")}</div>`;
     }).join("");
   }
 
@@ -572,7 +621,7 @@
       if (act !== "download") notice = "";
       if (act === "draw") makeDraw();
       else if (act === "save") await saveDraw();
-      else if (act === "cancel") { preview = null; $("drawMsg").innerHTML = ""; renderDraw(); }
+      else if (act === "cancel") { preview = null; renderDraw(); }
       else if (act === "sendAll") await sendEmails(currentDraw().id, null, false);
       else if (act === "deleteDraw") await deleteCurrentDraw();
       else if (act === "download") {
@@ -614,56 +663,52 @@
   }
 
   async function regenerateShare() {
-    if (!window.confirm("Make a new wish-list link? The old link (including links in emails already sent) will stop working.")) return;
-    const { data, error } = await sb.rpc("regenerate_share_token", { p_family: family.id });
-    if (error) { toast(friendlyError(error), "bad"); return; }
-    family.share_token = data;
-    renderShare();
-    toast("New link created.");
+    if (!window.confirm("Reset the wish list link? The old link, including ones already emailed, will stop working.")) return;
+    try {
+      const { data } = await persist(() => sb.rpc("regenerate_share_token", { p_family: family.id }));
+      family.share_token = data;
+      renderShare();
+      toast("New link created.");
+    } catch (e) {}
   }
 
   async function testEmail() {
     const button = $("testEmail");
     button.disabled = true;
-    button.textContent = "Sending… (server may be waking up)";
+    button.textContent = "Sending…";
     try {
-      const { data: { session: s } } = await sb.auth.getSession();
-      const response = await fetch(cfg.apiBase.replace(/\/$/, "") + "/api/test-email", {
-        method: "POST", headers: { Authorization: "Bearer " + s.access_token }
-      });
-      const result = await response.json().catch(() => ({ ok: false, error: "Server error " + response.status }));
-      toast(result.ok ? `Test email sent to ${result.to}. ${result.remainingToday} left today.` : "Test failed: " + result.error, result.ok ? "ok" : "bad");
+      const result = await apiPost("/api/test-email");
+      toast(result.ok ? `Test sent to ${result.to}.` : "Test failed: " + result.error, result.ok ? "ok" : "bad");
     } catch (error) {
       toast(friendlyError(error), "bad");
     } finally {
       button.disabled = false;
-      button.textContent = "Send me a test email";
+      button.textContent = "Send test email";
     }
   }
 
   async function loadAdmins() {
     const { data, error } = await sb.rpc("list_family_admins", { p_family: family.id });
-    if (error) { $("adminList").innerHTML = '<div class="banner bad">' + esc(friendlyError(error)) + "</div>"; return; }
+    if (error) { $("adminList").innerHTML = banner("bad", friendlyError(error)); return; }
     const isOwner = myRole === "owner";
     $("addAdminForm").hidden = !isOwner;
-    $("adminCount").textContent = data.length;
     $("adminList").innerHTML = data.map((a) => {
       const me = a.user_id === session.user.id;
       const canRemove = isOwner || me;
-      return `<div class="admin-row"><span>${esc(a.email)}${me ? " (you)" : ""}</span>
-        <span class="hint">${esc(a.role)}</span>
-        ${canRemove ? `<button type="button" class="remove" data-user="${esc(a.user_id)}">${me ? "Leave" : "Remove"}</button>` : ""}</div>`;
+      return `<div class="admin-row"><span>${esc(a.email)}${me ? ' <span class="muted">(you)</span>' : ""}</span>
+        <span class="tag">${esc(a.role)}</span>
+        ${canRemove ? `<button type="button" class="link danger" data-user="${esc(a.user_id)}">${me ? "Leave" : "Remove"}</button>` : "<span></span>"}</div>`;
     }).join("");
   }
 
   async function addAdmin(event) {
     event.preventDefault();
     const email = $("adminEmail").value.trim();
-    const { error } = await sb.rpc("add_family_admin", { p_family: family.id, p_email: email, p_role: $("adminRole").value });
-    if (error) { toast(friendlyError(error), "bad"); return; }
-    $("adminEmail").value = "";
-    toast(email + " is now an admin.");
-    loadAdmins();
+    try {
+      await persist(() => sb.rpc("add_family_admin", { p_family: family.id, p_email: email, p_role: $("adminRole").value }));
+      $("adminEmail").value = "";
+      loadAdmins();
+    } catch (e) {}
   }
 
   async function removeAdmin(event) {
@@ -671,9 +716,10 @@
     if (!button) return;
     const me = button.dataset.user === session.user.id;
     if (!window.confirm(me ? "Leave this family? You'll lose access." : "Remove this admin?")) return;
-    const { error } = await sb.rpc("remove_family_admin", { p_family: family.id, p_user: button.dataset.user });
-    if (error) { toast(friendlyError(error), "bad"); return; }
-    if (me) { family = null; showFamilies(false); } else loadAdmins();
+    try {
+      await persist(() => sb.rpc("remove_family_admin", { p_family: family.id, p_user: button.dataset.user }));
+      if (me) { family = null; showFamilies(false); } else loadAdmins();
+    } catch (e) {}
   }
 
   // ================================================================= wiring
@@ -683,11 +729,12 @@
   document.querySelectorAll('[data-act="signout"]').forEach((el) => el.addEventListener("click", signOut));
   $("newFamilyForm").addEventListener("submit", createFamily);
   $("familyList").addEventListener("click", (e) => { const b = e.target.closest(".family-pick"); if (b) openFamily(b.dataset.id); });
-  $("switchFamily").addEventListener("click", (e) => { e.preventDefault(); storageSet(LAST_FAMILY_KEY, ""); showFamilies(false); });
+  $("switchFamily").addEventListener("click", () => { storageSet(LAST_FAMILY_KEY, ""); showFamilies(false); });
+  document.querySelectorAll("[data-tab]").forEach((t) => t.addEventListener("click", () => showTab(t.dataset.tab)));
   document.querySelectorAll("[data-setting]").forEach((el) => el.addEventListener("change", saveSetting));
   $("addPersonForm").addEventListener("submit", addPerson);
   $("people").addEventListener("change", updatePersonField);
-  $("people").addEventListener("click", removePerson);
+  $("people").addEventListener("click", onPeopleClick);
   $("peopleFile").addEventListener("change", importPeople);
   $("applyHistory").addEventListener("click", applyHistory);
   $("historyFile").addEventListener("change", loadHistoryFiles);
@@ -700,6 +747,7 @@
   $("testEmail").addEventListener("click", testEmail);
   $("addAdminForm").addEventListener("submit", addAdmin);
   $("adminList").addEventListener("click", removeAdmin);
+  window.addEventListener("beforeunload", (e) => { if (pendingSaves) { e.preventDefault(); e.returnValue = ""; } });
 
   sb.auth.getSession().then(({ data }) => { if (!data.session) views("authView"); });
 })();
