@@ -74,18 +74,8 @@
     if (!token || !/^[0-9a-f-]{36}$/i.test(token)) { status("Use the wish list link from your email or organizer."); return; }
     if (!window.supabase || /YOUR-/.test(cfg.supabaseUrl + cfg.supabaseAnonKey)) { status("Site not configured.", "bad"); return; }
 
-    // Uses the organizer's saved login (if any) from the admin page, so admins can remove any item.
     const sb = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
     let data = null;
-    let isAdmin = null;   // null = not checked yet
-
-    async function checkAdmin() {
-      const { data: { session } } = await sb.auth.getSession();
-      if (!session) return false;
-      // Database rules only return this family if the signed-in user is one of its admins.
-      const { data: fam } = await sb.from("families").select("id").eq("share_token", token).maybeSingle();
-      return !!fam;
-    }
     const openIds = new Set([params.get("open"), params.get("me")].filter(Boolean));
 
     async function load() {
@@ -93,12 +83,10 @@
       if (error) { status(error.message, "bad"); return; }
       if (!result) { status("This link has expired. Ask your organizer for the new one.", "bad"); return; }
       data = result;
-      if (isAdmin === null) isAdmin = await checkAdmin().catch(() => false);
       status("");
       $("eventTitle").textContent = data.family.name;
       document.title = data.family.name + " · Wish Lists";
-      $("eventMeta").textContent = [data.family.occasion, data.family.budget && "Budget " + data.family.budget,
-        isAdmin && "Organizer view: you can delete any item"].filter(Boolean).join(" · ");
+      $("eventMeta").textContent = [data.family.occasion, data.family.budget && "Budget " + data.family.budget].filter(Boolean).join(" · ");
       renderList();
       $("listCard").hidden = false;
     }
@@ -122,7 +110,6 @@
     }
 
     function renderList() {
-      const keys = getKeys();
       const me = myId();
       const list = $("wishList");
       if (!data.members.length) { list.innerHTML = '<p class="none muted">No one added yet.</p>'; return; }
@@ -133,7 +120,7 @@
           return '<li class="item"><div class="item-body">' +
             (link ? '<a href="' + esc(link) + '" target="_blank" rel="noopener noreferrer">' + esc(item.title) + " ↗</a>" : "<span>" + esc(item.title) + "</span>") +
             (item.notes ? '<span class="muted">' + esc(item.notes) + "</span>" : "") + "</div>" +
-            (keys[item.id] || isAdmin ? '<button type="button" class="link danger remove" data-id="' + esc(item.id) + '">Delete</button>' : "") +
+            '<button type="button" class="link danger remove" data-id="' + esc(item.id) + '">Delete</button>' +
             "</li>";
         }).join("") + "</ul>" : '<p class="none muted">Nothing yet.</p>';
         const foot = addingFor === m.id
@@ -186,9 +173,7 @@
       if (!button || !confirm("Delete this item?")) return;
       const keys = getKeys();
       const id = button.dataset.id;
-      const { error } = keys[id]
-        ? await sb.rpc("wishlist_delete", { p_token: token, p_item: id, p_edit_key: keys[id] })
-        : await sb.from("wishlist_items").delete().eq("id", id);   // organizer: allowed by database rules
+      const { error } = await sb.rpc("wishlist_delete_any", { p_token: token, p_item: id });
       if (error) { status(error.message, "bad"); return; }
       delete keys[button.dataset.id]; setKeys(keys);
       await load();
